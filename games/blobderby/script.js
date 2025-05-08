@@ -234,9 +234,36 @@ function drawJoystick() {
 
 function drawAI() {
     aiOpponents.forEach(ai => {
+        if (!pandaSpriteSheetLoaded || !ai.spriteSheet) return; // Don't draw if image not loaded or not assigned
+
         if (ai.y + ai.size / 2 > -20) { // Draw if still somewhat visible from top
-            ctx.fillStyle = ai.color;
-            ctx.fillRect(ai.x - ai.size / 2, ai.y - ai.size / 2, ai.size, ai.size);
+            const spriteIndexToDraw = ai.currentAnimFrameValue;
+            const spriteSheetCols = 3; // Panda spritesheet is 3 columns wide
+            const sx = (spriteIndexToDraw % spriteSheetCols) * ai.spriteWidth;
+            const sy = Math.floor(spriteIndexToDraw / spriteSheetCols) * ai.spriteHeight;
+
+            ctx.save(); // Save current context state
+
+            if (ai.spriteShouldBeFlipped) {
+                ctx.translate(ai.x, ai.y); // Translate to AI's center for flipping
+                ctx.scale(-1, 1);          // Flip horizontally
+                ctx.drawImage(
+                    ai.spriteSheet,
+                    sx, sy,
+                    ai.spriteWidth, ai.spriteHeight,
+                    -ai.size / 2, -ai.size / 2,
+                    ai.size, ai.size
+                );
+            } else { // Draw normally
+                ctx.drawImage(
+                    ai.spriteSheet,
+                    sx, sy,
+                    ai.spriteWidth, ai.spriteHeight,
+                    ai.x - ai.size / 2, ai.y - ai.size / 2,
+                    ai.size, ai.size
+                );
+            }
+            ctx.restore(); // Restore context
         }
     });
 }
@@ -375,19 +402,49 @@ function updateAIMovement() {
     aiOpponents.forEach((ai, index) => {
         if (ai.finished) {
             ai.y -= FINISHED_CHARACTER_SPEED; // Move finished AI off-screen
+            ai.isMoving = true; // Considered moving for animation
+
+            // Ensure 'up' animation for moving off-screen
+            if (ai.currentAnimationType !== 'up_finished') {
+                ai.currentAnimationType = 'up_finished';
+                ai.currentAnimSequenceIndex = 0;
+                ai.animationTick = 0;
+                ai.currentAnimFrameValue = ai.animRunUpFrames[0];
+                ai.spriteShouldBeFlipped = false;
+            }
+            
+            ai.animationTick++;
+            if (ai.animationTick >= ai.animationSpeed) {
+                ai.animationTick = 0;
+                ai.currentAnimSequenceIndex = (ai.currentAnimSequenceIndex + 1) % ai.animRunUpFrames.length;
+                ai.currentAnimFrameValue = ai.animRunUpFrames[ai.currentAnimSequenceIndex];
+            }
             return;
         }
 
         if (gameState !== 'PLAYING') {
             ai.stuckDirection = 0;
+            ai.isMoving = false;
+            if (ai.currentAnimationType !== 'idle') {
+                ai.currentAnimSequenceIndex = 0;
+                ai.animationTick = 0;
+            }
+            ai.currentAnimationType = 'idle';
+            ai.currentAnimFrameValue = ai.animIdleFrame;
+            ai.spriteShouldBeFlipped = false;
             return;
         }
         
-        // If execution reaches here, AI is not finished and game is PLAYING.
         const prevX = ai.x;
         const prevY = ai.y;
         let intendedNextY = ai.y - ai.speed;
-        let intendedNextX = ai.x; // Default to current X
+        let intendedNextX = ai.x;
+
+        let newAnimationType = ai.currentAnimationType;
+        let newSpriteShouldBeFlipped = ai.spriteShouldBeFlipped;
+        let currentSequence = null;
+        let newFrameValue = ai.currentAnimFrameValue;
+        ai.isMoving = false; // Assume not moving unless proven otherwise
 
         // --- Check Upward Movement --- 
         let lookAheadRectY = { x: ai.x - ai.size / 2, y: intendedNextY - ai.size / 2, width: ai.size, height: ai.size };
@@ -396,7 +453,7 @@ function updateAIMovement() {
             if (isRectCollision(lookAheadRectY, wall)) { hitWallMovingUp = true; break; }
         }
         let hitPitMovingUp = false;
-        if (!hitWallMovingUp) { // Only check pits if not already hitting a wall upwards
+        if (!hitWallMovingUp) {
             for (const pit of pits) {
                 if (isRectCollision(lookAheadRectY, pit)) { hitPitMovingUp = true; break; }
             }
@@ -406,15 +463,18 @@ function updateAIMovement() {
             // Can move UPWARDS successfully
             ai.y = intendedNextY;
             ai.stuckDirection = 0;
+            ai.isMoving = true;
+            newAnimationType = 'up';
+            currentSequence = ai.animRunUpFrames;
+            newSpriteShouldBeFlipped = false;
         } else {
-            // CANNOT move UPWARDS, engage or continue stuck logic
-            ai.y = prevY; // Stay at current Y, upward movement blocked
+            // CANNOT move UPWARDS
+            ai.y = prevY; 
 
-            if (ai.stuckDirection === 0) { // If not already trying a direction, pick one
+            if (ai.stuckDirection === 0) {
                 ai.stuckDirection = (Math.random() < 0.5) ? -1 : 1;
             }
 
-            // Attempt to move sideways in the current ai.stuckDirection
             intendedNextX = ai.x + (ai.speed * SIDE_STEP_SPEED_FACTOR * ai.stuckDirection);
             let lookAheadRectX = { x: intendedNextX - ai.size / 2, y: ai.y - ai.size / 2, width: ai.size, height: ai.size };
             
@@ -422,7 +482,7 @@ function updateAIMovement() {
             for (const wall of walls) {
                 if (isRectCollision(lookAheadRectX, wall)) { canMoveSidewaysThisStep = false; break; }
             }
-            if (canMoveSidewaysThisStep) { // Check pits only if walls are clear for sideways move
+            if (canMoveSidewaysThisStep) {
                 for (const pit of pits) {
                     if (isRectCollision(lookAheadRectX, pit)) { canMoveSidewaysThisStep = false; break; }
                 }
@@ -430,13 +490,55 @@ function updateAIMovement() {
 
             if (canMoveSidewaysThisStep) {
                 ai.x = intendedNextX;
+                ai.isMoving = true;
+                currentSequence = ai.animRunLeftFrames;
+                if (ai.stuckDirection === -1) { // Moving left
+                    newAnimationType = 'left';
+                    newSpriteShouldBeFlipped = true; 
+                } else { // Moving right
+                    newAnimationType = 'right';
+                    newSpriteShouldBeFlipped = false;
+                }
             } else {
-                // CANNOT move sideways in the current stuckDirection.
-                ai.x = prevX; // Stay put horizontally.
-                // Force a flip in direction immediately, as this path is blocked.
-                ai.stuckDirection *= -1;
+                ai.x = prevX;
+                ai.stuckDirection *= -1; // Flip direction
+                ai.isMoving = false; // Stuck, so not "moving" for animation
+                newAnimationType = 'idle'; // Or a specific "stuck" animation if we had one
+                currentSequence = null;
+                newSpriteShouldBeFlipped = false;
             }
         }
+
+        // Animation update logic based on movement
+        if (!ai.isMoving) {
+            if (newAnimationType !== 'idle') {
+                ai.currentAnimSequenceIndex = 0;
+                ai.animationTick = 0;
+            }
+            newAnimationType = 'idle';
+            newFrameValue = ai.animIdleFrame;
+            newSpriteShouldBeFlipped = false;
+        } else {
+            if (newAnimationType !== ai.currentAnimationType || ai.currentAnimationType === 'idle') {
+                ai.currentAnimSequenceIndex = 0;
+                ai.animationTick = 0;
+                if (currentSequence) {
+                    newFrameValue = currentSequence[0];
+                }
+            }
+            ai.animationTick++;
+            if (ai.animationTick >= ai.animationSpeed) {
+                ai.animationTick = 0;
+                if (currentSequence) {
+                    ai.currentAnimSequenceIndex = (ai.currentAnimSequenceIndex + 1) % currentSequence.length;
+                    newFrameValue = currentSequence[ai.currentAnimSequenceIndex];
+                }
+            }
+        }
+        ai.currentAnimationType = newAnimationType;
+        ai.spriteShouldBeFlipped = newSpriteShouldBeFlipped;
+        ai.currentAnimFrameValue = newFrameValue;
+
 
         // Boundary checks for AI after all movement logic
         ai.x = Math.max(ai.size / 2, Math.min(ai.x, gameWidth - ai.size / 2));
@@ -834,20 +936,37 @@ function resetGame() {
 function initAI() {
     aiOpponents.length = 0; // Clear previous AI if any (for restarts)
     for (let i = 0; i < NUM_AI_OPPONENTS; i++) {
-        // Stagger starting positions slightly and assign varied speeds
         const startX = (gameWidth / (NUM_AI_OPPONENTS + 1)) * (i + 1) + (Math.random() * 20 - 10);
         aiOpponents.push({
-            x: Math.max(10, Math.min(gameWidth - 10, startX)), // Keep within bounds
-            y: gameHeight - 30 - (Math.random() * 20), // Slightly staggered y start near player
+            x: Math.max(10, Math.min(gameWidth - 10, startX)),
+            y: gameHeight - 30 - (Math.random() * 20),
             size: 20,
-            color: aiColors[i % aiColors.length],
-            speed: 1 + Math.random() * 0.8, // Speed between 1.0 and 1.8
+            speed: 1 + Math.random() * 0.8,
             finished: false,
             finishTime: 0,
             isPlayer: false,
             id: 'ai' + i,
-            stuckDirection: 0 // 0: not stuck, -1: trying left, 1: trying right
+            stuckDirection: 0,
+
+            // Sprite properties for AI (mirroring player)
+            spriteSheet: pandaSpriteSheetLoaded ? pandaSpriteSheet : null, // Assign loaded sheet
+            spriteWidth: 256,
+            spriteHeight: 256,
+            animRunUpFrames: [6, 7, 8],
+            animRunLeftFrames: [3, 4, 5],
+            animIdleFrame: 0,
+            currentAnimFrameValue: 0,      // Initial frame
+            currentAnimSequenceIndex: 0,
+            animationTick: 0,
+            animationSpeed: 5 + Math.floor(Math.random() * 3), // Slight variation in anim speed
+            isMoving: false,
+            currentAnimationType: 'idle',
+            spriteShouldBeFlipped: false
         });
+        // Initialize AI with idle frame if spritesheet is ready
+        if (pandaSpriteSheetLoaded) {
+            aiOpponents[aiOpponents.length - 1].currentAnimFrameValue = aiOpponents[aiOpponents.length - 1].animIdleFrame;
+        }
     }
 }
 
@@ -962,6 +1081,14 @@ function init() {
         pandaSpriteSheetLoaded = true;
         player.currentAnimFrameValue = player.animIdleFrame; // Initialize with idle frame
         // console.log('Panda spritesheet loaded and assigned to player.');
+
+        // Assign spritesheet to already initialized AI if they missed it
+        aiOpponents.forEach(ai => {
+            if (!ai.spriteSheet) {
+                ai.spriteSheet = pandaSpriteSheet;
+                ai.currentAnimFrameValue = ai.animIdleFrame;
+            }
+        });
     };
     pandaSpriteSheet.onerror = () => {
         console.error('Failed to load panda spritesheet.');
