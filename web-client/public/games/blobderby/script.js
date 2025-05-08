@@ -7,7 +7,7 @@ let pandaSpriteSheetLoaded = false;
 
 // ADDED: List of available spritesheet names
 const availableSpriteSheetNames = [
-    "cat.png",
+    "tabby.png",
     "dragon.png",
     "duck.png",
     "bread.png",
@@ -791,7 +791,7 @@ function determineRaceOutcome() {
 }
 
 function checkCollisions(character, prevX, prevY) {
-    console.log(`[Debug checkCollisions ENTRY] char ID: ${character.id || 'player'}, isFalling: ${character.isFalling}, finished: ${character.finished}`);
+    // console.log(`[Debug checkCollisions ENTRY] char ID: ${character.id || 'player'}, isFalling: ${character.isFalling}, finished: ${character.finished}`);
     if (character.finished && !character.isFalling) {
         console.log(`[Debug checkCollisions] char ID: ${character.id || 'player'} returning early: finished and not falling.`);
         return; 
