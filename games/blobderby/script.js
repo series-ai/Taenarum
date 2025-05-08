@@ -1,6 +1,10 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Cat spritesheet
+let catSpriteSheet = new Image();
+let catSpriteSheetLoaded = false;
+
 // Game configuration
 const aspectRatio = 360 / 640;
 const gameWidth = 360; // Base width
@@ -15,12 +19,24 @@ const FINISHED_CHARACTER_SPEED = 2; // Speed for characters after they cross the
 const player = {
     x: gameWidth / 2,
     y: gameHeight - 50,
-    size: 20,
-    color: 'blue',
+    size: 20, // This is the size the sprite will be drawn on canvas
+    // color: 'blue', // Removed color, using sprite now
     speed: 2,
     finished: false,
     finishTime: 0,
-    isPlayer: true // To distinguish player from AI
+    isPlayer: true, // To distinguish player from AI
+
+    // Sprite properties
+    spriteSheet: null, // Will be assigned after image loads
+    spriteWidth: 256,  // Width of a single sprite frame in the spritesheet
+    spriteHeight: 256, // Height of a single sprite frame in the spritesheet
+    runAnimationFrames: [1, 2, 3, 4, 5], // Sprite indices for running
+    idleFrameIndex: 6,                   // Sprite index for idle
+    currentRunFrame: 0,                  // Index into runAnimationFrames array
+    animationTick: 0,                    // Counter for controlling animation speed
+    animationSpeed: 5,                  // Update sprite frame every 5 game loops
+    isMoving: false,                      // Tracks if the player is currently moving
+    facingDirection: 'right'              // Added: 'left' or 'right'
 };
 
 // Joystick properties
@@ -130,10 +146,44 @@ function resizeCanvas() {
 
 // Drawing functions
 function drawPlayer() {
+    if (!catSpriteSheetLoaded || !player.spriteSheet) return; // Don't draw if image not loaded or not assigned
+
     // Draw player even if finished, as they might be moving off screen
     if (player.y + player.size / 2 > -20) { // Draw if still somewhat visible from top
-        ctx.fillStyle = player.color;
-        ctx.fillRect(player.x - player.size / 2, player.y - player.size / 2, player.size, player.size);
+        let spriteIndexToDraw;
+        if (player.isMoving || player.finished) { // Use run animation if moving or finished (moving off screen)
+            spriteIndexToDraw = player.runAnimationFrames[player.currentRunFrame];
+        } else {
+            spriteIndexToDraw = player.idleFrameIndex;
+        }
+
+        const spriteSheetCols = 4; // Spritesheet is 4 columns wide
+        const sx = (spriteIndexToDraw % spriteSheetCols) * player.spriteWidth;
+        const sy = Math.floor(spriteIndexToDraw / spriteSheetCols) * player.spriteHeight;
+
+        ctx.save(); // Save current context state
+
+        if (player.facingDirection === 'left') {
+            ctx.translate(player.x, player.y); // Translate to player's center (which is the pivot for scaling)
+            ctx.scale(-1, 1);                  // Flip horizontally
+            ctx.drawImage(
+                player.spriteSheet,
+                sx, sy,                                    // Source x, y on spritesheet
+                player.spriteWidth, player.spriteHeight,  // Source width, height of one frame
+                -player.size / 2, -player.size / 2,       // Destination x, y (relative to translated & scaled origin)
+                player.size, player.size                    // Destination width, height on canvas
+            );
+        } else { // Facing right or default
+            // Draw normally, centered at player.x, player.y
+            ctx.drawImage(
+                player.spriteSheet,
+                sx, sy,                                    // Source x, y on spritesheet
+                player.spriteWidth, player.spriteHeight,  // Source width, height of one frame
+                player.x - player.size / 2, player.y - player.size / 2, // Destination top-left on canvas
+                player.size, player.size                    // Destination width, height on canvas
+            );
+        }
+        ctx.restore(); // Restore context to prevent affecting other drawings
     }
 }
 
@@ -191,11 +241,32 @@ function drawAI() {
 function updatePlayerMovement() {
     if (player.finished) {
         player.y -= FINISHED_CHARACTER_SPEED; // Move finished player off-screen
+        player.isMoving = true; // Considered moving for animation purposes
+
+        // Update animation frame while moving off-screen
+        player.animationTick++;
+        if (player.animationTick >= player.animationSpeed) {
+            player.animationTick = 0;
+            player.currentRunFrame = (player.currentRunFrame + 1) % player.runAnimationFrames.length;
+        }
         return;
     }
-    if (gameState !== 'PLAYING') return;
+    if (gameState !== 'PLAYING') {
+        player.isMoving = false;
+        return;
+    }
 
-    if (joystick.active) {
+    if (joystick.active && (joystick.inputX !== 0 || joystick.inputY !== 0)) {
+        player.isMoving = true;
+
+        // Update facing direction based on joystick input X
+        if (joystick.inputX < 0) {
+            player.facingDirection = 'left';
+        } else if (joystick.inputX > 0) {
+            player.facingDirection = 'right';
+        }
+        // If joystick.inputX is 0 (purely vertical movement), keep the last facing direction.
+
         const angle = Math.atan2(joystick.inputY, joystick.inputX);
         const magnitude = Math.sqrt(joystick.inputX * joystick.inputX + joystick.inputY * joystick.inputY);
         const normalizedMagnitude = Math.min(1, magnitude);
@@ -208,6 +279,13 @@ function updatePlayerMovement() {
 
         player.x = nextX;
         player.y = nextY;
+
+        // Update animation frame for running
+        player.animationTick++;
+        if (player.animationTick >= player.animationSpeed) {
+            player.animationTick = 0;
+            player.currentRunFrame = (player.currentRunFrame + 1) % player.runAnimationFrames.length;
+        }
 
         checkCollisions(player, prevX, prevY);
         if (player.finished) return; // If collision resulted in finishing (e.g. pit), stop here
@@ -228,6 +306,8 @@ function updatePlayerMovement() {
             checkAllFinished();
             // After finishing, player will now be handled by the block at the start of this function to move off screen.
         }
+    } else {
+        player.isMoving = false; // Not actively moving via joystick
     }
 }
 
@@ -812,10 +892,24 @@ function resolveWallCollisionForCharacter(character) {
 
 // Initialization
 function init() {
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas(); // Initial sizing
+    resizeCanvas(); // Initial resize
+    initAI(); // Initialize AI opponents
+    raceStartTime = performance.now();
+    gameState = 'PLAYING'; // Start the game in playing state
 
-    // Pointer events for cross-device compatibility
+    // Load cat spritesheet
+    catSpriteSheet.src = 'roundcat.png';
+    catSpriteSheet.onload = () => {
+        player.spriteSheet = catSpriteSheet;
+        catSpriteSheetLoaded = true;
+        // console.log('Cat spritesheet loaded and assigned to player.');
+    };
+    catSpriteSheet.onerror = () => {
+        console.error('Failed to load cat spritesheet.');
+    };
+
+    // Event listeners
+    window.addEventListener('resize', resizeCanvas);
     canvas.addEventListener('mousedown', onPointerDown);
     canvas.addEventListener('mousemove', onPointerMove);
     canvas.addEventListener('mouseup', onPointerUp);
@@ -826,11 +920,9 @@ function init() {
     canvas.addEventListener('touchend', onPointerUp, { passive: false });
     canvas.addEventListener('touchcancel', onPointerUp, { passive: false });
     
-    initAI(); // Initialize AI characters
-    raceStartTime = performance.now(); // Initialize race start time
-
     // Start game loop
     gameLoop();
 }
 
+// Start the game
 init(); 
