@@ -22,23 +22,10 @@
         #game-container {
             position: relative;
         }
-        .score-container {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 24px;
-            z-index: 1;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
     <div id="game-container">
-        <div class="score-container">
-            <div id="score-display">Score: 0</div>
-        </div>
         <canvas id="gameCanvas"></canvas>
     </div>
     <script src="game.js"></script>

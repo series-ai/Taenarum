@@ -2,7 +2,6 @@ class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
-        this.scoreDisplay = document.getElementById('score-display');
         
         // Set canvas size
         this.canvas.width = 400;
@@ -13,6 +12,10 @@ class Game {
         this.backgroundImage.src = 'road.png';
         this.backgroundY = 0;
         this.backgroundSpeed = -2; // Negative speed for upward scroll
+        
+        // Load treat image
+        this.treatImage = new Image();
+        this.treatImage.src = 'fish-treat.png';
         
         // Game state
         this.score = 0;
@@ -273,7 +276,6 @@ class Game {
             if (obstacle.y + obstacle.height < 0) {
                 if (!this.player.isDead) {
                     this.score = ++this.player.obstaclesAvoided;
-                    this.scoreDisplay.textContent = `Score: ${this.score}`;
                 }
                 return false;
             }
@@ -318,6 +320,27 @@ class Game {
             if (this.backgroundY <= -this.canvas.height + this.backgroundSpeed) {
                 this.backgroundY = 0;
             }
+        }
+        
+        // Draw score with treat icon
+        if (this.treatImage.complete) {
+            // Draw treat icon
+            this.ctx.drawImage(
+                this.treatImage,
+                10, // X position
+                10, // Y position
+                20, // Width
+                20  // Height
+            );
+            
+            // Draw score text next to treat
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '20px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.shadowColor = 'black';
+            this.ctx.shadowBlur = 4;
+            this.ctx.fillText(`${this.score}`, 40, 27);
+            this.ctx.shadowBlur = 0;
         }
         
         // Draw all characters (player and NPCs)
@@ -383,32 +406,85 @@ class Game {
         });
         
         // Draw game over screen
-        if (this.gameOver) {
+        this.drawGameOver();
+    }
+    
+    drawGameOver() {
+        if (!this.gameOver) return;
+        
+        const currentTime = performance.now();
+        if (currentTime - this.gameOverTime < 2000) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
             this.ctx.fillStyle = 'white';
-            this.ctx.font = '30px Arial';
+            this.ctx.font = '48px Arial';
             this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
             
             if (this.victory) {
-                this.ctx.fillText('Victory!', this.canvas.width/2, this.canvas.height/2 - 20);
-                this.ctx.font = '20px Arial';
-                this.ctx.fillText(
-                    'You outlasted all competitors!',
-                    this.canvas.width/2,
-                    this.canvas.height/2 + 20
-                );
+                this.ctx.fillText('Victory!', this.canvas.width / 2, this.canvas.height / 2 - 40);
+                
+                // Draw fish icon and score
+                if (this.treatImage.complete) {
+                    const iconSize = 30;
+                    const iconX = this.canvas.width / 2 - 60;
+                    const iconY = this.canvas.height / 2 + 5;
+                    this.ctx.drawImage(this.treatImage, iconX, iconY, iconSize, iconSize);
+                }
+                this.ctx.font = '24px Arial';
+                this.ctx.fillText(`× ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
             } else {
-                this.ctx.fillText('Game Over!', this.canvas.width/2, this.canvas.height/2 - 20);
+                this.ctx.fillText('Game Over', this.canvas.width / 2, this.canvas.height / 2 - 40);
+                
+                // Draw fish icon and score
+                if (this.treatImage.complete) {
+                    const iconSize = 30;
+                    const iconX = this.canvas.width / 2 - 60;
+                    const iconY = this.canvas.height / 2 + 5;
+                    this.ctx.drawImage(this.treatImage, iconX, iconY, iconSize, iconSize);
+                }
+                this.ctx.font = '24px Arial';
+                this.ctx.fillText(`× ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
+            }
+        } else {
+            // After delay, show restart message
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '48px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            if (this.victory) {
+                this.ctx.fillText('Victory!', this.canvas.width / 2, this.canvas.height / 2 - 40);
+                
+                // Draw fish icon and score
+                if (this.treatImage.complete) {
+                    const iconSize = 30;
+                    const iconX = this.canvas.width / 2 - 60;
+                    const iconY = this.canvas.height / 2 + 5;
+                    this.ctx.drawImage(this.treatImage, iconX, iconY, iconSize, iconSize);
+                }
+                this.ctx.font = '24px Arial';
+                this.ctx.fillText(`× ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
+            } else {
+                this.ctx.fillText('Game Over', this.canvas.width / 2, this.canvas.height / 2 - 40);
+                
+                // Draw fish icon and score
+                if (this.treatImage.complete) {
+                    const iconSize = 30;
+                    const iconX = this.canvas.width / 2 - 60;
+                    const iconY = this.canvas.height / 2 + 5;
+                    this.ctx.drawImage(this.treatImage, iconX, iconY, iconSize, iconSize);
+                }
+                this.ctx.font = '24px Arial';
+                this.ctx.fillText(`× ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
             }
             
-            this.ctx.font = '20px Arial';
-            this.ctx.fillText(
-                'Click to restart',
-                this.canvas.width/2,
-                this.canvas.height/2 + 60
-            );
+            this.ctx.font = '24px Arial';
+            this.ctx.fillText('Press SPACE to restart', this.canvas.width / 2, this.canvas.height / 2 + 80);
         }
     }
     
@@ -424,7 +500,6 @@ class Game {
     
     restart() {
         this.score = 0;
-        this.scoreDisplay.textContent = 'Score: 0';
         this.gameOver = false;
         this.victory = false;
         this.gameOverTime = 0;
