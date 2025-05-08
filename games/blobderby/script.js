@@ -5,6 +5,10 @@ const ctx = canvas.getContext('2d');
 let pandaSpriteSheet = new Image();
 let pandaSpriteSheetLoaded = false;
 
+// Off-screen canvas for tinting
+let offScreenCanvas = null;
+let offCtx = null;
+
 // Game configuration
 const aspectRatio = 360 / 640;
 const gameWidth = 360; // Base width
@@ -233,8 +237,18 @@ function drawJoystick() {
 }
 
 function drawAI() {
+    // Guard clause: If essential resources for sprite drawing aren't ready, exit.
+    // This prevents errors if drawAI is called before spritesheet or offscreen canvas is initialized.
+    if (!pandaSpriteSheetLoaded || !offScreenCanvas || !offCtx) {
+        // Optional: could draw a placeholder if sprites aren't ready, or just return.
+        // For simplicity, we'll just return, AIs won't be drawn until resources are ready.
+        return;
+    }
+
     aiOpponents.forEach(ai => {
-        if (!pandaSpriteSheetLoaded || !ai.spriteSheet) return; // Don't draw if image not loaded or not assigned
+        // Ensure AI has a spritesheet; should be true if pandaSpriteSheetLoaded is true
+        // and initAI/onload logic correctly assigned it.
+        if (!ai.spriteSheet) return;
 
         if (ai.y + ai.size / 2 > -20) { // Draw if still somewhat visible from top
             const spriteIndexToDraw = ai.currentAnimFrameValue;
@@ -242,28 +256,51 @@ function drawAI() {
             const sx = (spriteIndexToDraw % spriteSheetCols) * ai.spriteWidth;
             const sy = Math.floor(spriteIndexToDraw / spriteSheetCols) * ai.spriteHeight;
 
-            ctx.save(); // Save current context state
+            // 1. Render tinted sprite to off-screen canvas
+            // Clear the off-screen canvas (important for transparency and drawing the next AI)
+            offCtx.clearRect(0, 0, offScreenCanvas.width, offScreenCanvas.height);
+            
+            // Draw original sprite frame to off-screen canvas
+            offCtx.drawImage(
+                ai.spriteSheet, // The panda spritesheet
+                sx, sy, ai.spriteWidth, ai.spriteHeight, // Source rect from spritesheet
+                0, 0, ai.spriteWidth, ai.spriteHeight    // Destination rect on off-screen canvas (at full size)
+            );
 
+            // Apply tint on off-screen canvas if AI has a color
+            if (ai.color) {
+                const originalGlobalAlphaOff = offCtx.globalAlpha; 
+                const originalCompositeOpOff = offCtx.globalCompositeOperation;
+
+                offCtx.globalAlpha = 0.4; // Opacity of the tint layer
+                offCtx.fillStyle = ai.color;
+                offCtx.globalCompositeOperation = 'source-atop'; // Apply color only to opaque pixels of the sprite
+                offCtx.fillRect(0, 0, ai.spriteWidth, ai.spriteHeight); // Fill the entire off-screen canvas area
+
+                // Reset off-screen context properties to defaults for the next draw operation or AI
+                offCtx.globalAlpha = originalGlobalAlphaOff; 
+                offCtx.globalCompositeOperation = originalCompositeOpOff;
+            }
+
+            // 2. Draw the (now tinted) off-screen canvas to the main game canvas
+            ctx.save(); // Save main context state for potential flip/transformations
+            
             if (ai.spriteShouldBeFlipped) {
                 ctx.translate(ai.x, ai.y); // Translate to AI's center for flipping
                 ctx.scale(-1, 1);          // Flip horizontally
                 ctx.drawImage(
-                    ai.spriteSheet,
-                    sx, sy,
-                    ai.spriteWidth, ai.spriteHeight,
-                    -ai.size / 2, -ai.size / 2,
-                    ai.size, ai.size
+                    offScreenCanvas, // Source is the tinted off-screen canvas
+                    -ai.size / 2, -ai.size / 2, // Destination x, y (relative to translated & scaled origin)
+                    ai.size, ai.size           // Destination width, height on main canvas (scaled down)
                 );
-            } else { // Draw normally
+            } else { // Draw normally (not flipped)
                 ctx.drawImage(
-                    ai.spriteSheet,
-                    sx, sy,
-                    ai.spriteWidth, ai.spriteHeight,
-                    ai.x - ai.size / 2, ai.y - ai.size / 2,
-                    ai.size, ai.size
+                    offScreenCanvas, // Source is the tinted off-screen canvas
+                    ai.x - ai.size / 2, ai.y - ai.size / 2, // Destination top-left on main canvas
+                    ai.size, ai.size           // Destination width, height on main canvas (scaled down)
                 );
             }
-            ctx.restore(); // Restore context
+            ctx.restore(); // Restore main context state
         }
     });
 }
@@ -941,6 +978,7 @@ function initAI() {
             x: Math.max(10, Math.min(gameWidth - 10, startX)),
             y: gameHeight - 30 - (Math.random() * 20),
             size: 20,
+            color: aiColors[i % aiColors.length], // Assign color for tinting
             speed: 1 + Math.random() * 0.8,
             finished: false,
             finishTime: 0,
@@ -1079,7 +1117,7 @@ function init() {
     pandaSpriteSheet.onload = () => {
         player.spriteSheet = pandaSpriteSheet;
         pandaSpriteSheetLoaded = true;
-        player.currentAnimFrameValue = player.animIdleFrame; // Initialize with idle frame
+        player.currentAnimFrameValue = player.animIdleFrame;
         // console.log('Panda spritesheet loaded and assigned to player.');
 
         // Assign spritesheet to already initialized AI if they missed it
@@ -1089,6 +1127,19 @@ function init() {
                 ai.currentAnimFrameValue = ai.animIdleFrame;
             }
         });
+
+        // Initialize off-screen canvas for tinting now that sprite dimensions are known
+        if (player.spriteSheet && player.spriteWidth > 0 && player.spriteHeight > 0 && !offScreenCanvas) {
+            offScreenCanvas = document.createElement('canvas');
+            offScreenCanvas.width = player.spriteWidth;  // e.g., 256
+            offScreenCanvas.height = player.spriteHeight; // e.g., 256
+            offCtx = offScreenCanvas.getContext('2d');
+            // console.log(`Off-screen canvas for tinting initialized to ${offScreenCanvas.width}x${offScreenCanvas.height}`);
+        } else if (offScreenCanvas) {
+            // console.log('Off-screen canvas already initialized.');
+        } else {
+            // console.error('Failed to initialize off-screen canvas: player sprite dimensions not available.');
+        }
     };
     pandaSpriteSheet.onerror = () => {
         console.error('Failed to load panda spritesheet.');
