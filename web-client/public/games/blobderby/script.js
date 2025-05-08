@@ -11,7 +11,9 @@ const availableSpriteSheetNames = [
     "dragon.png",
     "duck.png",
     "bread.png",
-    "panda.png"
+    "panda.png",
+    "axolotl.png",
+    "pug.png"
 ];
 // ADDED: To store loaded spritesheet Image objects
 const loadedSpriteSheets = {};
