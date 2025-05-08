@@ -23,7 +23,7 @@ const player = {
     bucketWidth: 120, // 30% of screen width
     bucketHeight: 30, // Arbitrary, can adjust
     color: 'blue',
-    leanSpeed: 200, // pixels per second, adjust for smooth animation
+    leanSpeed: 400, // pixels per second, adjust for smooth animation
     isLeaningLeft: false,
     isLeaningRight: false,
     returnToCenterSmoothTime: 0.5, // seconds, from spec
@@ -46,7 +46,7 @@ const objectSize = 20; // 20x20 pixels
 const objectFallSpeed = 300; // pixels per second
 let spawnInterval = 2000; // milliseconds (2 seconds)
 let timeToNextSpawn = spawnInterval;
-const spawnRateIncreaseInterval = 10000; // 10 seconds
+const spawnRateIncreaseInterval = 8000; // 8 seconds
 const spawnRateDecrease = 100; // 0.1 seconds in milliseconds
 let timeToNextSpawnRateIncrease = spawnRateIncreaseInterval;
 const maxObjectsOnScreen = 5;
@@ -158,7 +158,7 @@ function update(deltaTime) {
         // Spawn rate increase logic
         timeToNextSpawnRateIncrease -= deltaTime * 1000;
         if (timeToNextSpawnRateIncrease <= 0) {
-            spawnInterval = Math.max(500, spawnInterval - spawnRateDecrease); // Ensure spawn interval doesn't get too low
+            spawnInterval = Math.max(500, spawnInterval / 1.5); // Ensure spawn interval doesn't get too low
             timeToNextSpawnRateIncrease = spawnRateIncreaseInterval;
             console.log("New spawn interval:", spawnInterval);
         }
