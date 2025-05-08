@@ -1481,13 +1481,29 @@ function generateRandomPits() {
 function init() {
     resizeCanvas(); // Initial resize
 
+    // Determine player sprite from URL parameter
+    let playerSpriteName = "panda.png"; // Default
+    const urlParams = new URLSearchParams(window.location.search);
+    const avatarId = urlParams.get('avatarId');
+
+    if (avatarId) {
+        const requestedSpriteName = avatarId.toLowerCase() + ".png";
+        if (availableSpriteSheetNames.includes(requestedSpriteName)) {
+            playerSpriteName = requestedSpriteName;
+        } else {
+            console.warn(`Avatar ID '${avatarId}' not found. Defaulting to panda.`);
+        }
+    }
+    const playerSpritePath = `spritesheets/${playerSpriteName}`;
+
     // One-time loading of player's main spritesheet and off-screen canvas setup
-    pandaSpriteSheet.src = 'spritesheets/panda.png';
+    // The variable is still named pandaSpriteSheet, but it loads the selected playerSpritePath
+    pandaSpriteSheet.src = playerSpritePath;
     pandaSpriteSheet.onload = () => {
         player.spriteSheet = pandaSpriteSheet;
         pandaSpriteSheetLoaded = true; 
         player.currentAnimFrameValue = player.animIdleFrame;
-        // console.log('Panda spritesheet loaded and assigned to player.');
+        console.log(`Player spritesheet '${playerSpriteName}' loaded and assigned.`);
 
         if (!offScreenCanvas && player.spriteSheet && player.spriteWidth > 0 && player.spriteHeight > 0) {
             offScreenCanvas = document.createElement('canvas');
@@ -1502,7 +1518,7 @@ function init() {
         }
     };
     pandaSpriteSheet.onerror = () => {
-        console.error('Failed to load panda spritesheet for player.');
+        console.error(`Failed to load player spritesheet: ${playerSpritePath}`);
         pandaSpriteSheetLoaded = false; 
     };
     
