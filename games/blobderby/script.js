@@ -29,6 +29,11 @@ const player = {
     finishTime: 0,
     isPlayer: true, // To distinguish player from AI
 
+    // Properties for falling animation
+    isFalling: false,
+    fallingAnimationDuration: 45, // Approx 0.75 seconds at 60fps
+    fallingAnimationTick: 0,
+
     // Sprite properties
     spriteSheet: null, // Will be assigned after image loads
     spriteWidth: 256,  // Width of a single sprite frame in the spritesheet
@@ -94,7 +99,7 @@ const pits = [
 let gameState = 'PLAYING'; // Initial state, will expand later
 
 // AI Opponents
-const NUM_AI_OPPONENTS = 10;
+const NUM_AI_OPPONENTS = 1; // Changed to 1 for easier debugging
 const aiOpponents = [];
 const aiColors = ['red', 'green', 'purple', 'orange', 'cyan', 'pink', 'brown', '#FFD700', '#C0C0C0', '#2F4F4F'];
 
@@ -161,8 +166,23 @@ function resizeCanvas() {
 function drawPlayer() {
     if (!pandaSpriteSheetLoaded || !player.spriteSheet) return; // Don't draw if image not loaded or not assigned
 
+    // If player has fallen and animation is done, don't draw them.
+    if (player.finished && player.finishTime === Infinity && !player.isFalling) {
+        return; 
+    }
+
     // Draw player even if finished, as they might be moving off screen
     if (player.y + player.size / 2 > -20) { // Draw if still somewhat visible from top
+        
+        let currentDrawSize = player.size;
+        if (player.isFalling) {
+            const fallProgress = player.fallingAnimationTick / player.fallingAnimationDuration;
+            currentDrawSize = player.size * Math.max(0, (1 - fallProgress)); // Shrink to 0
+            if (currentDrawSize < 0.1) currentDrawSize = 0; // Effectively invisible, prevent tiny artifacts
+        }
+        
+        if (currentDrawSize <= 0) return; // Don't attempt to draw if size is zero
+
         // player.currentAnimFrameValue is set by updatePlayerMovement
         const spriteIndexToDraw = player.currentAnimFrameValue;
 
@@ -179,16 +199,16 @@ function drawPlayer() {
                 player.spriteSheet,
                 sx, sy,                                    // Source x, y on spritesheet
                 player.spriteWidth, player.spriteHeight,  // Source width, height of one frame
-                -player.size / 2, -player.size / 2,       // Destination x, y (relative to translated & scaled origin)
-                player.size, player.size                    // Destination width, height on canvas
+                -currentDrawSize / 2, -currentDrawSize / 2,       // Destination x, y (relative to translated & scaled origin)
+                currentDrawSize, currentDrawSize                    // Destination width, height on canvas
             );
         } else { // Draw normally
             ctx.drawImage(
                 player.spriteSheet,
                 sx, sy,                                    // Source x, y on spritesheet
                 player.spriteWidth, player.spriteHeight,  // Source width, height of one frame
-                player.x - player.size / 2, player.y - player.size / 2, // Destination top-left on canvas
-                player.size, player.size                    // Destination width, height on canvas
+                player.x - currentDrawSize / 2, player.y - currentDrawSize / 2, // Destination top-left on canvas
+                currentDrawSize, currentDrawSize                    // Destination width, height on canvas
             );
         }
         ctx.restore(); // Restore context to prevent affecting other drawings
@@ -239,18 +259,43 @@ function drawJoystick() {
 function drawAI() {
     // Guard clause: If essential resources for sprite drawing aren't ready, exit.
     // This prevents errors if drawAI is called before spritesheet or offscreen canvas is initialized.
+    // console.log('[Debug drawAI] Called'); // General call check
     if (!pandaSpriteSheetLoaded || !offScreenCanvas || !offCtx) {
-        // Optional: could draw a placeholder if sprites aren't ready, or just return.
-        // For simplicity, we'll just return, AIs won't be drawn until resources are ready.
+        // console.log('[Debug drawAI] Exiting early - resources not ready');
         return;
     }
 
     aiOpponents.forEach(ai => {
         // Ensure AI has a spritesheet; should be true if pandaSpriteSheetLoaded is true
         // and initAI/onload logic correctly assigned it.
-        if (!ai.spriteSheet) return;
+        if (!ai.spriteSheet) {
+            // console.log(`[Debug drawAI] AI ${ai.id} has no spritesheet.`);
+            return;
+        }
+
+        // If AI has fallen and animation is done, don't draw them.
+        if (ai.finished && ai.finishTime === Infinity && !ai.isFalling) {
+            console.log(`[Debug drawAI] AI ${ai.id} is finished falling and not drawn.`);
+            return; 
+        }
 
         if (ai.y + ai.size / 2 > -20) { // Draw if still somewhat visible from top
+            
+            let currentDrawSize = ai.size;
+            if (ai.isFalling) {
+                const fallProgress = ai.fallingAnimationTick / ai.fallingAnimationDuration;
+                currentDrawSize = ai.size * Math.max(0, (1 - fallProgress)); // Shrink to 0
+                if (currentDrawSize < 0.1) currentDrawSize = 0; // Effectively invisible
+                console.log(`[Debug drawAI] Falling AI ${ai.id}: tick=${ai.fallingAnimationTick}, progress=${fallProgress.toFixed(2)}, drawSize=${currentDrawSize.toFixed(2)}`);
+            }
+
+            if (currentDrawSize <= 0 && ai.isFalling) { // Specific log for when it becomes 0 due to falling
+                console.log(`[Debug drawAI] AI ${ai.id} currentDrawSize is <= 0 due to falling, not drawing.`);
+                return;
+            } else if (currentDrawSize <= 0) {
+                 return; // Don't attempt to draw if size is zero for other reasons (though unlikely here)
+            }
+
             const spriteIndexToDraw = ai.currentAnimFrameValue;
             const spriteSheetCols = 3; // Panda spritesheet is 3 columns wide
             const sx = (spriteIndexToDraw % spriteSheetCols) * ai.spriteWidth;
@@ -290,14 +335,14 @@ function drawAI() {
                 ctx.scale(-1, 1);          // Flip horizontally
                 ctx.drawImage(
                     offScreenCanvas, // Source is the tinted off-screen canvas
-                    -ai.size / 2, -ai.size / 2, // Destination x, y (relative to translated & scaled origin)
-                    ai.size, ai.size           // Destination width, height on main canvas (scaled down)
+                    -currentDrawSize / 2, -currentDrawSize / 2, // Destination x, y (relative to translated & scaled origin)
+                    currentDrawSize, currentDrawSize           // Destination width, height on main canvas (scaled down)
                 );
             } else { // Draw normally (not flipped)
                 ctx.drawImage(
                     offScreenCanvas, // Source is the tinted off-screen canvas
-                    ai.x - ai.size / 2, ai.y - ai.size / 2, // Destination top-left on main canvas
-                    ai.size, ai.size           // Destination width, height on main canvas (scaled down)
+                    ai.x - currentDrawSize / 2, ai.y - currentDrawSize / 2, // Destination top-left on main canvas
+                    currentDrawSize, currentDrawSize           // Destination width, height on main canvas (scaled down)
                 );
             }
             ctx.restore(); // Restore main context state
@@ -307,6 +352,29 @@ function drawAI() {
 
 // Update functions
 function updatePlayerMovement() {
+    // Handle falling animation first
+    if (player.isFalling) {
+        player.fallingAnimationTick++;
+        // Player sprite will be scaled down in drawPlayer
+
+        if (player.fallingAnimationTick >= player.fallingAnimationDuration) {
+            player.finished = true;
+            player.finishTime = Infinity;
+            player.isFalling = false; // Reset state
+
+            if (!finishers.find(f => f.isPlayer)) {
+                finishers.push({ id: 'player', time: player.finishTime, isPlayer: true });
+            }
+            checkAllFinished(); // Player's fate is sealed, check game state
+        }
+        // Skip other movement and animation updates while falling
+        player.isMoving = false; 
+        // Optionally, set a specific animation type/frame for falling if available
+        // player.currentAnimationType = 'falling'; 
+        // player.currentAnimFrameValue = player.animFallingFrame; 
+        return; 
+    }
+
     if (player.finished) {
         player.y -= FINISHED_CHARACTER_SPEED; // Move finished player off-screen
         player.isMoving = true; // Considered moving for animation purposes
@@ -437,6 +505,31 @@ function updateAIMovement() {
     const SIDE_STEP_SPEED_FACTOR = 0.6;
 
     aiOpponents.forEach((ai, index) => {
+        // Handle AI falling animation first
+        if (ai.isFalling) {
+            ai.fallingAnimationTick++;
+            console.log(`[Debug updateAIMovement] Falling AI ${ai.id}: isFalling=${ai.isFalling}, tick=${ai.fallingAnimationTick}`);
+            // AI sprite will be scaled down in drawAI
+
+            if (ai.fallingAnimationTick >= ai.fallingAnimationDuration) {
+                ai.finished = true;
+                ai.finishTime = Infinity;
+                ai.isFalling = false; // Reset state
+                console.log(`[Debug updateAIMovement] AI ${ai.id} finished falling.`);
+
+                if (!finishers.find(f => f.id === ai.id)) {
+                    finishers.push({ id: ai.id, time: ai.finishTime, isPlayer: false });
+                }
+                checkAllFinished(); // AI's fate is sealed, check game state
+            }
+            // Skip other movement and animation updates while falling
+            ai.isMoving = false;
+            // Optionally, set a specific animation type/frame for falling if available
+            // ai.currentAnimationType = 'falling'; 
+            // ai.currentAnimFrameValue = ai.animFallingFrame; 
+            return; 
+        }
+
         if (ai.finished) {
             ai.y -= FINISHED_CHARACTER_SPEED; // Move finished AI off-screen
             ai.isMoving = true; // Considered moving for animation
@@ -489,10 +582,19 @@ function updateAIMovement() {
         for (const wall of walls) {
             if (isRectCollision(lookAheadRectY, wall)) { hitWallMovingUp = true; break; }
         }
+
         let hitPitMovingUp = false;
         if (!hitWallMovingUp) {
+            // AI Pathfinding: Check if CENTER of intended *next Y* position is in a pit
+            const nextCenterY_forPitCheck = intendedNextY;
+            const currentCenterX_forPitCheck = ai.x;
             for (const pit of pits) {
-                if (isRectCollision(lookAheadRectY, pit)) { hitPitMovingUp = true; break; }
+                if (currentCenterX_forPitCheck > pit.x && currentCenterX_forPitCheck < pit.x + pit.width &&
+                    nextCenterY_forPitCheck > pit.y && nextCenterY_forPitCheck < pit.y + pit.height) {
+                    hitPitMovingUp = true; 
+                    // console.log(`[Debug AI PathPit] AI ${ai.id} sees pit ahead (moving up) at ${currentCenterX_forPitCheck.toFixed(1)},${nextCenterY_forPitCheck.toFixed(1)}`);
+                    break; 
+                }
             }
         }
 
@@ -520,8 +622,16 @@ function updateAIMovement() {
                 if (isRectCollision(lookAheadRectX, wall)) { canMoveSidewaysThisStep = false; break; }
             }
             if (canMoveSidewaysThisStep) {
+                // AI Pathfinding: Check if CENTER of intended *next X* position is in a pit
+                const nextCenterX_forSidewaysPitCheck = intendedNextX;
+                const currentCenterY_forSidewaysPitCheck = ai.y;
                 for (const pit of pits) {
-                    if (isRectCollision(lookAheadRectX, pit)) { canMoveSidewaysThisStep = false; break; }
+                    if (nextCenterX_forSidewaysPitCheck > pit.x && nextCenterX_forSidewaysPitCheck < pit.x + pit.width &&
+                        currentCenterY_forSidewaysPitCheck > pit.y && currentCenterY_forSidewaysPitCheck < pit.y + pit.height) {
+                        canMoveSidewaysThisStep = false; 
+                        // console.log(`[Debug AI PathPit] AI ${ai.id} sees pit ahead (moving sideways) at ${nextCenterX_forSidewaysPitCheck.toFixed(1)},${currentCenterY_forSidewaysPitCheck.toFixed(1)}`);
+                        break; 
+                    }
                 }
             }
 
@@ -588,6 +698,7 @@ function updateAIMovement() {
                 resolveCharacterBump(ai, otherAi);
             }
         }
+        checkCollisions(ai, prevX, prevY);
         if (ai.finished) return; // If somehow finished due to bump
 
         // Check finish line for AI
@@ -604,22 +715,38 @@ function updateAIMovement() {
 }
 
 function checkAllFinished() {
-    const totalRacers = 1 + NUM_AI_OPPONENTS;
-    const requiredToTriggerRaceEnd = Math.ceil(totalRacers * QUALIFICATION_PERCENTAGE);
+    if (gameState !== 'PLAYING') return; // Only act if the game is supposed to be playing
 
-    if (gameState === 'PLAYING') { // Only proceed if the game is currently active
-        if (finishers.length >= requiredToTriggerRaceEnd) {
-            // Enough racers have finished according to qualification percentage
-            gameState = 'RACE_OVER';
-            determineRaceOutcome();
-        } else if (finishers.length === totalRacers) {
-            // All racers have finished (covers cases where QUALIFICATION_PERCENTAGE = 1.0)
-            gameState = 'RACE_OVER';
-            determineRaceOutcome();
-        }
+    // Condition 1: Player's race is over (either by finishing line or completing fall animation).
+    // This directly implements: "if there are no remaining alive players (the human player) 
+    // who haven't crossed the line, the round also ends."
+    if (player.finished) { // player.finished is true once fall animation completes or finish line crossed
+        gameState = 'RACE_OVER';
+        determineRaceOutcome(); // This will sort finishers and decide win/lose
+        return;
     }
-    // If player falls into a pit, checkCollisions sets player.finished = true, player.finishTime = Infinity,
-    // adds player to finishers, and then calls this. This function will then trigger RACE_OVER.
+
+    // If player is NOT finished, check other conditions for game end:
+    const totalRacers = 1 + NUM_AI_OPPONENTS;
+    const requiredToQualifyCount = Math.ceil(totalRacers * QUALIFICATION_PERCENTAGE);
+    const successfulFinishers = finishers.filter(f => f.time !== Infinity);
+
+    // Condition 2: Enough racers (could be AIs) have successfully qualified based on percentage.
+    if (successfulFinishers.length >= requiredToQualifyCount) {
+        gameState = 'RACE_OVER';
+        determineRaceOutcome();
+        return;
+    }
+    
+    // Condition 3: All racers are accounted for in the finishers list.
+    // This acts as a catch-all, e.g., if all AIs DNF and player is still somehow racing but then also DNFs
+    // in a way not immediately setting player.finished.
+    // Given Condition 1, this is less likely to be the primary trigger unless player.finished is delayed.
+    if (finishers.length === totalRacers) {
+        gameState = 'RACE_OVER';
+        determineRaceOutcome();
+        return;
+    }
 }
 
 function determineRaceOutcome() {
@@ -653,7 +780,11 @@ function determineRaceOutcome() {
 }
 
 function checkCollisions(character, prevX, prevY) {
-    if (character.finished) return; // Finished characters don't collide with walls/pits
+    console.log(`[Debug checkCollisions ENTRY] char ID: ${character.id || 'player'}, isFalling: ${character.isFalling}, finished: ${character.finished}`);
+    if (character.finished && !character.isFalling) {
+        console.log(`[Debug checkCollisions] char ID: ${character.id || 'player'} returning early: finished and not falling.`);
+        return; 
+    }
 
     const charRect = {
         x: character.x - character.size / 2,
@@ -711,29 +842,30 @@ function checkCollisions(character, prevX, prevY) {
     }
      // Pit collisions
     for (const pit of pits) {
-        const playerCenterX = character.x;
-        const playerCenterY = character.y;
-        if (playerCenterX > pit.x && playerCenterX < pit.x + pit.width &&
-            playerCenterY > pit.y && playerCenterY < pit.y + pit.height) {
-            if (character.isPlayer) { // Pitfall logic primarily for player as per spec
-                console.log("Player fell into a pit!");
-                character.finished = true; 
-                character.finishTime = Infinity; 
-                if (!finishers.find(f => f.isPlayer)) { 
-                     finishers.push({ id: 'player', time: Infinity, isPlayer: true });
+        const charCenterX = character.x; 
+        const charCenterY = character.y; 
+        
+        // Actual Falling: Use character's current CENTER point for pit collision
+        // charRect is already defined at the start of checkCollisions
+        if (!character.isPlayer) { 
+            // console.log(`[Debug PitCheck] AI ID: ${character.id}, AI Rect: (x:${charRect.x.toFixed(2)}, y:${charRect.y.toFixed(2)}, w:${charRect.width}, h:${charRect.height}), Pit: (x:${pit.x}, y:${pit.y}, w:${pit.width}, h:${pit.height})`);
+        }
+
+        if (charCenterX > pit.x && charCenterX < pit.x + pit.width &&
+            charCenterY > pit.y && charCenterY < pit.y + pit.height) { //MODIFIED BACK to center point
+            if (!character.isFalling && !character.finished) { // Start falling only if not already falling or truly finished
+                if (character.isPlayer) {
+                    console.log("[Debug checkCollisions] Player is falling into a pit!");
+                } else {
+                    console.log(`[Debug checkCollisions] AI ${character.id} is falling into a pit! Setting isFalling=true.`);
                 }
-                // checkAllFinished will be called from updatePlayerMovement after this function returns
-                // and will then trigger RACE_OVER and determineRaceOutcome.
-            } else {
-                // AI hitting a pit - for simplicity, make them stop and effectively DNF if they hit one
-                // This isn't per spec (AI should avoid) but is a fallback if avoidance fails
-                character.finished = true;
-                character.finishTime = Infinity;
-                if (!finishers.find(f => f.id === character.id)) {
-                    finishers.push({ id: character.id, time: Infinity, isPlayer: false });
-                }
+                character.isFalling = true;
+                character.fallingAnimationTick = 0;
+                // Do NOT set finished, add to finishers, or call checkAllFinished here for player or AI.
+                // This will be handled in their respective update functions after the animation.
             }
-            checkAllFinished(); // Update race status immediately if anyone falls into a pit
+            // Character has interacted with a pit (now falling)
+            // No further collision checks for *this character* against *other pits/walls* this frame.
             return; 
         }
     }
@@ -900,7 +1032,7 @@ function gameLoop() {
         updateAIMovement();
     } else if (gameState === 'GAME_LOSE') {
         // Later: drawLoseScreen();
-        console.log("Game Over - You Lose (pit)");
+        // console.log("Game Over - You Lose (pit)");
     }
 
     drawLevel();
@@ -961,6 +1093,8 @@ function resetGame() {
     player.y = gameHeight - 50;
     player.finished = false;
     player.finishTime = 0;
+    player.isFalling = false;
+    player.fallingAnimationTick = 0;
 
     finishers.length = 0; // Clear finishers array
     initAI(); // This will now correctly clear and re-populate AIs.
@@ -985,6 +1119,11 @@ function initAI() {
             isPlayer: false,
             id: 'ai' + i,
             stuckDirection: 0,
+
+            // Properties for falling animation (mirroring player)
+            isFalling: false,
+            fallingAnimationDuration: 45, // Same as player for consistency
+            fallingAnimationTick: 0,
 
             // Sprite properties for AI (mirroring player)
             spriteSheet: pandaSpriteSheetLoaded ? pandaSpriteSheet : null, // Assign loaded sheet
