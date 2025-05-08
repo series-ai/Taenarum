@@ -1,0 +1,460 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #f0f8ff;
+    font-family: 'Arial', sans-serif;
+    touch-action: manipulation;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100vw;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    max-width: 450px; /* Maximum width for larger screens */
+    height: 100vh;
+    max-height: 800px; /* Maximum height for larger screens */
+    aspect-ratio: 9/16; /* Force portrait aspect ratio */
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Media query for landscape orientation */
+@media (orientation: landscape) {
+    #game-container {
+        height: 100vh;
+        width: auto;
+    }
+}
+
+/* For smaller screens, use full viewport */
+@media (max-width: 450px) {
+    #game-container {
+        width: 100%;
+        height: 100vh;
+        max-height: none;
+    }
+}
+
+#gameCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    pointer-events: none;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+}
+
+#top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 10px 20px;
+    pointer-events: auto;
+}
+
+#treats-counter {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 15px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    pointer-events: auto;
+}
+
+.ui-button {
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.ui-button:hover {
+    transform: scale(1.05);
+}
+
+.ui-button:active {
+    transform: scale(0.95);
+}
+
+.ui-button img {
+    width: 24px;
+    height: 24px;
+}
+
+#fullness-meter {
+    position: absolute;
+    bottom: 100px; /* Move up to make room for debug controls */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#fullness-progress {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff9a9e 0%, #fad0c4 100%);
+    transition: width 0.3s ease;
+}
+
+.hat-icon {
+    width: 24px;
+    height: 24px;
+}
+
+#hat-inventory {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 20;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+#hat-inventory.hidden {
+    display: none;
+}
+
+.inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#close-inventory {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px 10px;
+}
+
+.rarity-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.rarity-filter {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 20px;
+    background: #f0f0f0;
+    cursor: pointer;
+}
+
+.rarity-filter.active {
+    background: #ff9a9e;
+    color: white;
+}
+
+#hats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 15px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.hat-item {
+    aspect-ratio: 1;
+    background: #f8f8f8;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.hat-item:hover {
+    transform: scale(1.05);
+}
+
+.hat-item img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+}
+
+.hat-item.locked {
+    filter: grayscale(1);
+    opacity: 0.5;
+}
+
+/* Animation classes */
+@keyframes bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.bounce {
+    animation: bounce 0.5s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.shake {
+    animation: shake 0.5s ease;
+}
+
+#debug-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex; /* Added for layout */
+    gap: 10px; /* Added for spacing */
+    pointer-events: auto; /* Enable clicks on debug controls */
+    z-index: 15; /* Ensure it's above fullness meter but below modals */
+}
+
+.debug-button {
+    background-color: #ffc107;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.debug-button:hover {
+    background-color: #e0a800;
+}
+.debug-button:active {
+    transform: scale(0.98);
+}
+
+.hat-reveal-overlay {
+    position: fixed; /* Use fixed to cover the whole screen */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* Darker overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100; /* Ensure it's on top of everything */
+    opacity: 0; /* Start hidden */
+    pointer-events: none; /* Don't interact when hidden */
+    transition: opacity 0.3s ease;
+}
+
+.hat-reveal-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.hat-reveal-display {
+    background: white;
+    padding: 40px; /* Increased padding */
+    border-radius: 20px; /* More rounded corners */
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Softer, larger shadow */
+    transform: scale(0.5); /* Start smaller for animation */
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease; /* Smoother pop-in */
+}
+
+.hat-reveal-display.fade-out { /* Class to trigger fade-out animation */
+    transform: scale(0.5);
+    opacity: 0;
+}
+
+.hat-reveal-display img {
+    width: 150px; /* Larger image */
+    height: 150px;
+    margin-bottom: 20px;
+    object-fit: contain;
+}
+
+.hat-name {
+    font-size: 24px; /* Larger font size */
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333; /* Darker text color */
+}
+
+/* Rarity colors for hat name */
+.hat-name.common {
+    color: #6c757d; /* Grey */
+}
+.hat-name.uncommon {
+    color: #28a745; /* Green */
+}
+.hat-name.rare {
+    color: #007bff; /* Blue */
+}
+.hat-name.legendary {
+    color: #ffc107; /* Gold/Orange */
+}
+
+/* Keyframes for animation */
+@keyframes float-in {
+    from {
+        transform: translateY(50px) scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes float-out {
+    from {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(-50px) scale(0.8);
+        opacity: 0;
+    }
+}
+
+.avatar-icon {
+    width: 24px;
+    height: 24px;
+}
+
+#avatar-selector {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 20;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+#avatar-selector.hidden {
+    display: none;
+}
+
+#avatars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 15px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.avatar-item {
+    aspect-ratio: 1;
+    background: #f8f8f8;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column; /* Stack image and name vertically */
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s; /* Add box-shadow transition */
+    padding: 10px; /* Add some padding */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+}
+
+.avatar-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* Enhanced shadow on hover */
+}
+.avatar-item.selected {
+    border: 3px solid #ff9a9e; /* Highlight selected avatar */
+    box-shadow: 0 0 10px #ff9a9e; /* Glow effect for selected */
+}
+
+.avatar-item img {
+    width: 70%; /* Adjust size as needed */
+    height: 70%;
+    object-fit: contain;
+    margin-bottom: 8px; /* Space between image and name */
+}
+
+.avatar-item .name {
+    font-size: 12px; /* Adjust size as needed */
+    color: #333;
+    text-align: center;
+}
+
+
+#play-button {
+    position: absolute;
+    bottom: 30px; /* Positioned at the bottom center */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff69b4; /* Hot pink */
+    color: white;
+    padding: 15px 30px;
+    border-radius: 30px; /* More rounded */
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    z-index: 15; /* Ensure it's above other elements like fullness bar */
+    pointer-events: auto; /* Make sure it's clickable */
+}
+
+#play-button:hover {
+    background: #ff85c1; /* Lighter pink on hover */
+    transform: translateX(-50%) scale(1.05); /* Slight scale up */
+}
+
+#play-button:active {
+    background: #ff50a3; /* Darker pink on active */
+    transform: translateX(-50%) scale(0.98); /* Slight scale down */
+}
+
+.play-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 8px; /* Space between icon and text */
+} 
