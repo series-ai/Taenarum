@@ -89,22 +89,36 @@ const finishLine = {
 };
 
 const walls = [
-    // Level boundaries (implicit for now, can add explicit wall objects if needed for visual)
-    // Example internal walls:
-    { x: 0, y: 0, width: gameWidth, height: 5, type: 'boundary' }, // Top boundary wall
-    { x: 0, y: gameHeight - 5, width: gameWidth, height: 5, type: 'boundary' }, // Bottom boundary wall
-    { x: 0, y: 0, width: 5, height: gameHeight, type: 'boundary' }, // Left boundary wall
-    { x: gameWidth - 5, y: 0, width: 5, height: gameHeight, type: 'boundary' }, // Right boundary wall
-
-    { x: 100, y: gameHeight / 2 - 50, width: 20, height: 100, color: 'gray', type: 'wall' },
-    { x: gameWidth - 120, y: gameHeight / 2 - 100, width: 20, height: 100, color: 'gray', type: 'wall' },
-    { x: 50, y: 200, width: 150, height: 20, color: 'gray', type: 'wall' }
+    // Boundary walls
+    { x: 0, y: 0, width: gameWidth, height: 5, type: 'boundary', color: 'darkgray' }, 
+    { x: 0, y: gameHeight - 5, width: gameWidth, height: 5, type: 'boundary', color: 'darkgray' }, 
+    { x: 0, y: 0, width: 5, height: gameHeight, type: 'boundary', color: 'darkgray' }, 
+    { x: gameWidth - 5, y: 0, width: 5, height: gameHeight, type: 'boundary', color: 'darkgray' }, 
 ];
 
-const pits = [
-    { x: gameWidth / 2 - 25, y: 300, width: 50, height: 50, color: 'black', type: 'pit' },
-    { x: 200, y: 150, width: 60, height: 30, color: 'black', type: 'pit' },
-];
+const pits = []; // Pits will be randomly generated
+
+// Obstacle Generation Config
+const MIN_WALLS = 4;
+const MAX_WALLS = 8;
+const MIN_WALL_WIDTH = 15;
+const MAX_WALL_WIDTH = 100; // Increased max width slightly
+const MIN_WALL_HEIGHT = 15;
+const MAX_WALL_HEIGHT = 100; // Increased max height slightly
+const WALL_COLOR = 'gray';
+
+const MIN_PITS = 3;
+const MAX_PITS = 6;
+const MIN_PIT_WIDTH = 30; // Increased min pit size
+const MAX_PIT_WIDTH = 70; // Increased max pit size
+const MIN_PIT_HEIGHT = 30; // Increased min pit size
+const MAX_PIT_HEIGHT = 70; // Increased max pit size
+const PIT_COLOR = 'black';
+
+// Y spawn range for obstacles, ensuring they are clear of finish line and start area.
+const OBSTACLE_MIN_Y_SPAWN = finishLine.y + finishLine.height + 40; // Buffer from finish line
+const OBSTACLE_MAX_Y_SPAWN = gameHeight - 120; // Buffer from bottom (player/AI start area)
+const OBSTACLE_X_PADDING = 10; // Padding from side boundaries for spawning obstacles
 
 // Game state
 let gameState = 'PLAYING'; // Initial state, will expand later
@@ -633,20 +647,6 @@ function updateAIMovement() {
                 if (isRectCollision(lookAheadRectX, wall)) { canMoveSidewaysThisStep = false; break; }
             }
             if (canMoveSidewaysThisStep) {
-                // AI Pathfinding: Check if CENTER of intended *next X* position is in a pit
-                const nextCenterX_forSidewaysPitCheck = intendedNextX;
-                const currentCenterY_forSidewaysPitCheck = ai.y;
-                for (const pit of pits) {
-                    if (nextCenterX_forSidewaysPitCheck > pit.x && nextCenterX_forSidewaysPitCheck < pit.x + pit.width &&
-                        currentCenterY_forSidewaysPitCheck > pit.y && currentCenterY_forSidewaysPitCheck < pit.y + pit.height) {
-                        canMoveSidewaysThisStep = false; 
-                        // console.log(`[Debug AI PathPit] AI ${ai.id} sees pit ahead (moving sideways) at ${nextCenterX_forSidewaysPitCheck.toFixed(1)},${currentCenterY_forSidewaysPitCheck.toFixed(1)}`);
-                        break; 
-                    }
-                }
-            }
-
-            if (canMoveSidewaysThisStep) {
                 ai.x = intendedNextX;
                 ai.isMoving = true;
                 currentSequence = ai.animRunLeftFrames;
@@ -1106,8 +1106,21 @@ function resetGame() {
     player.finishTime = 0;
     player.isFalling = false;
     player.fallingAnimationTick = 0;
+    // Reset player animation state
+    player.currentAnimationType = 'idle';
+    player.currentAnimFrameValue = player.animIdleFrame;
+    player.animationTick = 0;
+    player.currentAnimSequenceIndex = 0;
+    player.isMoving = false;
+    player.spriteShouldBeFlipped = false;
+
 
     finishers.length = 0; // Clear finishers array
+
+    // Generate new random layout for walls and pits
+    generateRandomWalls();
+    generateRandomPits();
+
     initAI(); // This will now correctly clear and re-populate AIs.
 
     raceStartTime = performance.now();
@@ -1359,50 +1372,144 @@ function resolveWallCollisionForCharacter(character) {
     }
 }
 
+// ADDED: Function to generate random walls
+function generateRandomWalls() {
+    // Remove old 'wall' type walls, keep 'boundary' walls
+    const boundaryWalls = walls.filter(wall => wall.type === 'boundary');
+    walls.length = 0; // Clear the array
+    walls.push(...boundaryWalls); // Add boundary walls back
+
+    const numWalls = Math.floor(Math.random() * (MAX_WALLS - MIN_WALLS + 1)) + MIN_WALLS;
+
+    for (let i = 0; i < numWalls; i++) {
+        let newWall;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 20; // Prevent infinite loop if space is too crowded
+
+        do {
+            attempts++;
+            const width = Math.floor(Math.random() * (MAX_WALL_WIDTH - MIN_WALL_WIDTH + 1)) + MIN_WALL_WIDTH;
+            const height = Math.floor(Math.random() * (MAX_WALL_HEIGHT - MIN_WALL_HEIGHT + 1)) + MIN_WALL_HEIGHT;
+            
+            // Ensure x and y are calculated so the wall fits within the designated spawn area
+            const x = OBSTACLE_X_PADDING + Math.random() * (gameWidth - width - 2 * OBSTACLE_X_PADDING);
+            const y = OBSTACLE_MIN_Y_SPAWN + Math.random() * (OBSTACLE_MAX_Y_SPAWN - OBSTACLE_MIN_Y_SPAWN - height);
+
+
+            if (y + height > OBSTACLE_MAX_Y_SPAWN + height || y < OBSTACLE_MIN_Y_SPAWN) { // Basic check
+                 newWall = null; // Invalid position
+                 continue;
+            }
+
+            newWall = {
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                color: WALL_COLOR,
+                type: 'wall'
+            };
+            // Future: Add overlap check with other generated walls if needed
+        } while (!newWall && attempts < MAX_ATTEMPTS);
+
+        if (newWall) {
+            walls.push(newWall);
+        }
+    }
+}
+
+// ADDED: Function to generate random pits
+function generateRandomPits() {
+    pits.length = 0; // Clear existing pits
+
+    const numPits = Math.floor(Math.random() * (MAX_PITS - MIN_PITS + 1)) + MIN_PITS;
+
+    for (let i = 0; i < numPits; i++) {
+        let newPitProperties;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 30;
+        let validPlacement = false;
+
+        do {
+            attempts++;
+            const width = Math.floor(Math.random() * (MAX_PIT_WIDTH - MIN_PIT_WIDTH + 1)) + MIN_PIT_WIDTH;
+            const height = Math.floor(Math.random() * (MAX_PIT_HEIGHT - MIN_PIT_HEIGHT + 1)) + MIN_PIT_HEIGHT;
+
+            const x = OBSTACLE_X_PADDING + Math.random() * (gameWidth - width - 2 * OBSTACLE_X_PADDING);
+            const y = OBSTACLE_MIN_Y_SPAWN + Math.random() * (OBSTACLE_MAX_Y_SPAWN - OBSTACLE_MIN_Y_SPAWN - height);
+
+            if (y + height > OBSTACLE_MAX_Y_SPAWN + height || y < OBSTACLE_MIN_Y_SPAWN) { // Basic Check
+                newPitProperties = null;
+                continue;
+            }
+            newPitProperties = { x, y, width, height };
+
+            // Check that center of pit does not overlap with any existing 'wall' type wall
+            let overlapsWithWall = false;
+            const pitCenterX = newPitProperties.x + newPitProperties.width / 2;
+            const pitCenterY = newPitProperties.y + newPitProperties.height / 2;
+
+            for (const wall of walls) {
+                if (wall.type === 'wall') { // Only check against generated (non-boundary) walls
+                    if (pitCenterX >= wall.x && pitCenterX < wall.x + wall.width &&
+                        pitCenterY >= wall.y && pitCenterY < wall.y + wall.height) {
+                        overlapsWithWall = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Optional: Check for overlap with other pits if desired (more complex)
+
+            if (!overlapsWithWall) {
+                validPlacement = true;
+            }
+
+        } while (!validPlacement && attempts < MAX_ATTEMPTS);
+
+        if (validPlacement && newPitProperties) {
+            pits.push({
+                ...newPitProperties,
+                color: PIT_COLOR,
+                type: 'pit'
+            });
+        }
+    }
+}
+
 // Initialization
 function init() {
     resizeCanvas(); // Initial resize
-    initAI(); // Initialize AI opponents (this will now also trigger their sprite loading)
-    raceStartTime = performance.now();
-    gameState = 'PLAYING'; // Start the game in playing state
 
-    // Load panda spritesheet FOR THE PLAYER
+    // One-time loading of player's main spritesheet and off-screen canvas setup
     pandaSpriteSheet.src = 'spritesheets/panda.png';
     pandaSpriteSheet.onload = () => {
         player.spriteSheet = pandaSpriteSheet;
-        pandaSpriteSheetLoaded = true; // This global flag might still be useful for player or generic checks
+        pandaSpriteSheetLoaded = true; 
         player.currentAnimFrameValue = player.animIdleFrame;
         // console.log('Panda spritesheet loaded and assigned to player.');
 
-        // REMOVED AI assignment from here, it's handled by loadAISpriteSheets and their individual onload.
-        // aiOpponents.forEach(ai => {
-        // if (!ai.spriteSheet) { // AIs now load their own, panda is just one option
-        // ai.spriteSheet = pandaSpriteSheet;
-        // ai.currentAnimFrameValue = ai.animIdleFrame;
-        // }
-        // });
-
-        // Initialize off-screen canvas for tinting now that sprite dimensions are known
-        // This should ideally wait until at least one sprite (player or AI) is loaded
-        // to get dimensions if they can vary. For now, assuming all sprites are 256x256.
         if (!offScreenCanvas && player.spriteSheet && player.spriteWidth > 0 && player.spriteHeight > 0) {
             offScreenCanvas = document.createElement('canvas');
-            offScreenCanvas.width = player.spriteWidth;  // e.g., 256
-            offScreenCanvas.height = player.spriteHeight; // e.g., 256
+            offScreenCanvas.width = player.spriteWidth;
+            offScreenCanvas.height = player.spriteHeight;
             offCtx = offScreenCanvas.getContext('2d');
             // console.log(`Off-screen canvas for tinting initialized to ${offScreenCanvas.width}x${offScreenCanvas.height} based on player sprite.`);
         } else if (offScreenCanvas) {
             // console.log('Off-screen canvas already initialized.');
-        } else {
-            // console.error('Failed to initialize off-screen canvas: player sprite dimensions not available or sprite not loaded.');
+        } else if (pandaSpriteSheetLoaded) { // Check if pandaSpriteSheetLoaded but dimensions were not available
+             console.error('Failed to initialize off-screen canvas: player sprite dimensions not available though sprite supposedly loaded.');
         }
     };
     pandaSpriteSheet.onerror = () => {
         console.error('Failed to load panda spritesheet for player.');
-        pandaSpriteSheetLoaded = false; // Ensure this is false if player's main sprite fails
+        pandaSpriteSheetLoaded = false; 
     };
+    
+    // Call resetGame to set up the initial game state, including AI, walls, pits.
+    resetGame(); 
 
-    // Event listeners
+    // Event listeners (should be added once)
     window.addEventListener('resize', resizeCanvas);
     canvas.addEventListener('mousedown', onPointerDown);
     canvas.addEventListener('mousemove', onPointerMove);
