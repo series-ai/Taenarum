@@ -11,6 +11,13 @@
 </head>
 <body>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <div id="endScreen" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border: 1px solid black; text-align: center;">
+        <h2>Game Over!</h2>
+        <p>Your Score: <span id="finalScore">0</span></p>
+        <button id="restartButton">Restart Game</button>
+    </div>
+
     <script src="game.js"></script>
 </body>
 </html> 

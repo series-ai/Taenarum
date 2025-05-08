@@ -1,5 +1,8 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const endScreen = document.getElementById('endScreen');
+const finalScoreDisplay = document.getElementById('finalScore');
+const restartButton = document.getElementById('restartButton');
 
 const GAME_WIDTH = 400;
 const GAME_HEIGHT = 600;
@@ -9,6 +12,7 @@ const MS_PER_FRAME = 1000 / TARGET_FPS;
 // Game state variables (will be expanded)
 let score = 0;
 let timeLeft = 30; // seconds, from spec
+let gameIsOver = false;
 
 // Player state
 const player = {
@@ -56,7 +60,7 @@ const lanes = [
 ];
 
 function spawnObject() {
-    if (fallingObjects.length >= maxObjectsOnScreen) {
+    if (fallingObjects.length >= maxObjectsOnScreen || gameIsOver) {
         return;
     }
 
@@ -74,6 +78,9 @@ function spawnObject() {
 }
 
 function update(deltaTime) {
+    if (gameIsOver) {
+        return; // Don't update game logic if game is over
+    }
     const now = Date.now();
 
     // Player stun logic
@@ -133,10 +140,9 @@ function update(deltaTime) {
         timeLeft -= deltaTime;
         if (timeLeft < 0) {
             timeLeft = 0;
-            // Potentially trigger game over logic here in the future
-            console.log("Game Over! Score:", score);
-            // For now, we can stop spawning or updating objects to signify game end
-            // A more formal game state machine would be better for larger games.
+            gameIsOver = true; // Set game over flag
+            showEndScreen(); // Call showEndScreen
+            // console.log("Game Over! Score:", score); // Original log
         }
     }
 
@@ -204,6 +210,12 @@ function update(deltaTime) {
 }
 
 function draw() {
+    if (gameIsOver) {
+        // Optionally, you could clear the canvas once or leave it as is
+        // ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT); 
+        // For now, let's just not draw game elements
+        return;
+    }
     // Clear canvas
     ctx.fillStyle = '#ADD8E6'; // Light blue background
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -242,8 +254,15 @@ function gameLoop(timestamp) {
     const deltaTime = (timestamp - lastTime) / 1000; // Delta time in seconds
     lastTime = timestamp;
 
-    update(deltaTime);
-    draw();
+    // Only call update and draw if the game is not over OR 
+    // if it's the first frame of game over to draw the final state before end screen
+    // This logic might need refinement depending on exact desired behavior for the last frame.
+    // For simplicity now, update and draw are skipped if gameIsOver is true.
+    // The showEndScreen function handles hiding the canvas.
+    if (!gameIsOver) {
+        update(deltaTime);
+        draw();
+    }
 
     requestAnimationFrame(gameLoop);
 }
@@ -317,6 +336,50 @@ function handlePointerUp(event) {
     }
 }
 
+// Add these new functions
+
+function showEndScreen() {
+    gameIsOver = true;
+    finalScoreDisplay.textContent = score;
+    canvas.style.display = 'none';
+    endScreen.style.display = 'block';
+}
+
+function restartGame() {
+    // Reset game state variables
+    score = 0;
+    timeLeft = 30; // Reset to initial time
+    gameIsOver = false;
+    player.x = GAME_WIDTH / 2;
+    player.y = GAME_HEIGHT - 100;
+    player.isLeaningLeft = false;
+    player.isLeaningRight = false;
+    player.targetX = GAME_WIDTH / 2;
+    player.isStunned = false;
+    player.stunTimer = 0;
+    
+    fallingObjects.length = 0; // Clear falling objects
+    timeToNextSpawn = spawnInterval; // Reset spawn timer (initial spawnInterval might need to be reset if it changes dynamically beyond the current logic)
+    // Reset spawn rate increase related timers/values if necessary
+    // For now, spawnInterval is reset by timeToNextSpawnRateIncrease logic or remains as last decreased
+    // If we want a fresh game, spawnInterval should be reset to its initial value
+    // spawnInterval = 2000; // Reset to initial if needed
+    // timeToNextSpawnRateIncrease = spawnRateIncreaseInterval;
+
+
+    // Hide end screen, show canvas
+    endScreen.style.display = 'none';
+    canvas.style.display = 'block';
+
+    // Reset lastTime for gameLoop to avoid a large deltaTime jump
+    lastTime = performance.now(); 
+    // The gameLoop is already running via requestAnimationFrame, 
+    // it will pick up the reset state. No need to call it directly.
+}
+
+// Add event listener for the restart button
+restartButton.addEventListener('click', restartGame);
 
 // Start the game loop
+lastTime = performance.now(); // Initialize lastTime before first call
 requestAnimationFrame(gameLoop); 
