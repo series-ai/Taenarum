@@ -44,6 +44,7 @@ const player = {
     finished: false,
     finishTime: 0,
     isPlayer: true, // To distinguish player from AI
+    rankDisplayString: "", // ADDED: To store the rank/status for display
 
     // Properties for falling animation
     isFalling: false,
@@ -772,26 +773,38 @@ function determineRaceOutcome() {
     const totalRacers = 1 + NUM_AI_OPPONENTS;
     const qualificationRankLimit = Math.ceil(totalRacers * QUALIFICATION_PERCENTAGE);
 
-    let playerRank = -1;
     let playerResult = finishers.find(f => f.isPlayer);
+    player.rankDisplayString = "DNF"; // Default to DNF
 
     if (playerResult) {
         if (playerResult.time === Infinity) { // Player fell in a pit
             gameState = 'GAME_LOSE';
+            player.rankDisplayString = "Failed to Finish (Fell)";
             return;
         }
         // Find rank only among actual finishers
         const actualFinishersSorted = finishers.filter(f => f.time !== Infinity).sort((a,b) => a.time - b.time);
         const playerActualRank = actualFinishersSorted.findIndex(f => f.isPlayer) + 1;
 
-        if (playerActualRank > 0 && playerActualRank <= qualificationRankLimit) {
-            gameState = 'GAME_WIN';
-        } else {
-            gameState = 'GAME_LOSE'; // Finished but not qualified
+        if (playerActualRank > 0) { // Player has a valid rank among finishers
+            player.rankDisplayString = `Finished: ${getOrdinal(playerActualRank)}`;
+            if (playerActualRank <= qualificationRankLimit) {
+                gameState = 'GAME_WIN';
+            } else {
+                gameState = 'GAME_LOSE'; // Finished but not qualified
+                player.rankDisplayString += " (Not Qualified)";
+            }
+        } else { // Player result exists but not in actualFinishersSorted (should not happen if time isn't Infinity)
+             gameState = 'GAME_LOSE';
+             player.rankDisplayString = "Failed to Finish";
         }
     } else {
-        // Player did not finish by the time race ended (DNF)
+        // Player did not finish by the time race ended (e.g., timed out while still on track, though current logic pushes to RACE_OVER if player finishes)
+        // Or, player.finished was true (e.g. due to falling) but they weren't added to finishers correctly before this.
+        // Given current checkAllFinished, player should be in finishers if player.finished is true.
+        // This case might imply race ended due to AIs finishing and player DNF without explicit fall.
         gameState = 'GAME_LOSE';
+        player.rankDisplayString = "Did Not Finish";
     }
 }
 
@@ -1077,7 +1090,7 @@ function drawWinScreen() {
     ctx.textAlign = 'center';
     ctx.fillText('You Win!', gameWidth / 2, gameHeight / 2 - 60);
     ctx.font = '18px Arial';
-    ctx.fillText('Top 50% Qualified', gameWidth / 2, gameHeight / 2 - 30);
+    ctx.fillText(player.rankDisplayString, gameWidth / 2, gameHeight / 2 - 30);
 
     // Draw Proceed button
     ctx.fillStyle = '#4CAF50'; // Green
@@ -1095,6 +1108,8 @@ function drawLoseScreen() {
     ctx.font = '24px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('You Lose!', gameWidth / 2, gameHeight / 2 - 30);
+    ctx.font = '18px Arial'; // ADDED: Font for the rank display
+    ctx.fillText(player.rankDisplayString, gameWidth / 2, gameHeight / 2); // ADDED: Display rank/reason
 
     // Draw Restart button
     ctx.fillStyle = '#f44336'; // Red
@@ -1118,6 +1133,7 @@ function resetGame() {
     player.currentAnimSequenceIndex = 0;
     player.isMoving = false;
     player.spriteShouldBeFlipped = false;
+    player.rankDisplayString = ""; // ADDED: Reset rank display string
 
 
     finishers.length = 0; // Clear finishers array
@@ -1196,7 +1212,6 @@ function loadAISpriteSheets() {
                 ai.currentAnimFrameValue = ai.animIdleFrame;
                 spritesToLoad--;
                 if (spritesToLoad === 0) {
-                    // All AI sprites are now assigned (either new or from cache)
                     // console.log("All AI sprites assigned.");
                 }
             } else if (loadedSpriteSheets[ai.spriteName] instanceof Image) {
@@ -1480,6 +1495,13 @@ function generateRandomPits() {
             });
         }
     }
+}
+
+// ADDED: Helper function to get ordinal numbers (1st, 2nd, 3rd)
+function getOrdinal(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0] || "th"); // Added "th" as fallback for safety
 }
 
 // Initialization

@@ -39,12 +39,11 @@ const games = [
     title: 'Blob Derby',
     srcPath: 'games/blobderby/index.html',
   },
-  // Add more game objects here as needed
-  // {
-  //   id: 'newgame',
-  //   title: 'New Game',
-  //   srcPath: 'games/newgame/index.html',
-  // },
+  {
+    id: 'jumpspikes',
+    title: 'Jump Spikes',
+    srcPath: 'games/jumpspikes/index.html',
+  }
 ];
 
 function GameDiscovery() {
