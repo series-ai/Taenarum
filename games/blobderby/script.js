@@ -2,8 +2,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Cat spritesheet
-let catSpriteSheet = new Image();
-let catSpriteSheetLoaded = false;
+let pandaSpriteSheet = new Image();
+let pandaSpriteSheetLoaded = false;
 
 // Game configuration
 const aspectRatio = 360 / 640;
@@ -20,7 +20,6 @@ const player = {
     x: gameWidth / 2,
     y: gameHeight - 50,
     size: 20, // This is the size the sprite will be drawn on canvas
-    // color: 'blue', // Removed color, using sprite now
     speed: 2,
     finished: false,
     finishTime: 0,
@@ -30,13 +29,23 @@ const player = {
     spriteSheet: null, // Will be assigned after image loads
     spriteWidth: 256,  // Width of a single sprite frame in the spritesheet
     spriteHeight: 256, // Height of a single sprite frame in the spritesheet
-    runAnimationFrames: [1, 2, 3, 4, 5], // Sprite indices for running
-    idleFrameIndex: 6,                   // Sprite index for idle
-    currentRunFrame: 0,                  // Index into runAnimationFrames array
-    animationTick: 0,                    // Counter for controlling animation speed
-    animationSpeed: 5,                  // Update sprite frame every 5 game loops
-    isMoving: false,                      // Tracks if the player is currently moving
-    facingDirection: 'right'              // Added: 'left' or 'right'
+    
+    // New animation properties for panda.png (3x3, 256x256)
+    // User: "0-2 for running up and 3-5 for running left"
+    animRunUpFrames: [6, 7, 8],    // For moving "up" (e.g., towards finish line, Y decreases)
+    animRunLeftFrames: [3, 4, 5],  // For moving "left" (X decreases)
+    // Assuming "down" reuses "up" frames, and "right" reuses "left" frames (flipped).
+    // Idle frame: using frame 0 (first of "up" animation) as default.
+    animIdleFrame: 0, 
+
+    currentAnimFrameValue: 0,        // The actual sprite index (0-8) to draw
+    currentAnimSequenceIndex: 0,     // Index within the current animation sequence
+    animationTick: 0,
+    animationSpeed: 5,               // Update sprite frame every X game loops
+    isMoving: false,
+    
+    currentAnimationType: 'idle',    // 'idle', 'up', 'down', 'left', 'right', 'up_finished'
+    spriteShouldBeFlipped: false     // True if the current sprite needs to be flipped horizontally
 };
 
 // Joystick properties
@@ -146,25 +155,21 @@ function resizeCanvas() {
 
 // Drawing functions
 function drawPlayer() {
-    if (!catSpriteSheetLoaded || !player.spriteSheet) return; // Don't draw if image not loaded or not assigned
+    if (!pandaSpriteSheetLoaded || !player.spriteSheet) return; // Don't draw if image not loaded or not assigned
 
     // Draw player even if finished, as they might be moving off screen
     if (player.y + player.size / 2 > -20) { // Draw if still somewhat visible from top
-        let spriteIndexToDraw;
-        if (player.isMoving || player.finished) { // Use run animation if moving or finished (moving off screen)
-            spriteIndexToDraw = player.runAnimationFrames[player.currentRunFrame];
-        } else {
-            spriteIndexToDraw = player.idleFrameIndex;
-        }
+        // player.currentAnimFrameValue is set by updatePlayerMovement
+        const spriteIndexToDraw = player.currentAnimFrameValue;
 
-        const spriteSheetCols = 4; // Spritesheet is 4 columns wide
+        const spriteSheetCols = 3; // Panda spritesheet is 3 columns wide
         const sx = (spriteIndexToDraw % spriteSheetCols) * player.spriteWidth;
         const sy = Math.floor(spriteIndexToDraw / spriteSheetCols) * player.spriteHeight;
 
         ctx.save(); // Save current context state
 
-        if (player.facingDirection === 'left') {
-            ctx.translate(player.x, player.y); // Translate to player's center (which is the pivot for scaling)
+        if (player.spriteShouldBeFlipped) {
+            ctx.translate(player.x, player.y); // Translate to player's center for flipping
             ctx.scale(-1, 1);                  // Flip horizontally
             ctx.drawImage(
                 player.spriteSheet,
@@ -173,8 +178,7 @@ function drawPlayer() {
                 -player.size / 2, -player.size / 2,       // Destination x, y (relative to translated & scaled origin)
                 player.size, player.size                    // Destination width, height on canvas
             );
-        } else { // Facing right or default
-            // Draw normally, centered at player.x, player.y
+        } else { // Draw normally
             ctx.drawImage(
                 player.spriteSheet,
                 sx, sy,                                    // Source x, y on spritesheet
@@ -243,36 +247,91 @@ function updatePlayerMovement() {
         player.y -= FINISHED_CHARACTER_SPEED; // Move finished player off-screen
         player.isMoving = true; // Considered moving for animation purposes
 
-        // Update animation frame while moving off-screen
+        // Ensure 'up' animation for moving off-screen
+        if (player.currentAnimationType !== 'up_finished') {
+            player.currentAnimationType = 'up_finished';
+            player.currentAnimSequenceIndex = 0;
+            player.animationTick = 0;
+            player.currentAnimFrameValue = player.animRunUpFrames[0]; // Start with the first frame of "up" animation
+        }
+        
         player.animationTick++;
         if (player.animationTick >= player.animationSpeed) {
             player.animationTick = 0;
-            player.currentRunFrame = (player.currentRunFrame + 1) % player.runAnimationFrames.length;
+            player.currentAnimSequenceIndex = (player.currentAnimSequenceIndex + 1) % player.animRunUpFrames.length;
+            player.currentAnimFrameValue = player.animRunUpFrames[player.currentAnimSequenceIndex];
         }
+        player.spriteShouldBeFlipped = false; // 'Up' animation is not flipped
         return;
     }
+
     if (gameState !== 'PLAYING') {
         player.isMoving = false;
+        if (player.currentAnimationType !== 'idle') {
+            player.currentAnimSequenceIndex = 0;
+            player.animationTick = 0;
+        }
+        player.currentAnimationType = 'idle';
+        player.currentAnimFrameValue = player.animIdleFrame;
+        player.spriteShouldBeFlipped = false; // Default idle not flipped
         return;
     }
+
+    let newAnimationType = player.currentAnimationType;
+    let newSpriteShouldBeFlipped = player.spriteShouldBeFlipped;
+    let currentSequence = null;
+    let newFrameValue = player.currentAnimFrameValue;
+
 
     if (joystick.active && (joystick.inputX !== 0 || joystick.inputY !== 0)) {
         player.isMoving = true;
 
-        // Update facing direction based on joystick input X
-        if (joystick.inputX < 0) {
-            player.facingDirection = 'left';
-        } else if (joystick.inputX > 0) {
-            player.facingDirection = 'right';
-        }
-        // If joystick.inputX is 0 (purely vertical movement), keep the last facing direction.
+        const angle = Math.atan2(joystick.inputY, joystick.inputX) * 180 / Math.PI;
 
-        const angle = Math.atan2(joystick.inputY, joystick.inputX);
+        if (angle >= -135 && angle < -45) { // Moving UP (Y is negative)
+            newAnimationType = 'up';
+            currentSequence = player.animRunUpFrames;
+            newSpriteShouldBeFlipped = false;
+        } else if (angle >= 45 && angle < 135) { // Moving DOWN (Y is positive)
+            newAnimationType = 'down';
+            currentSequence = player.animRunUpFrames; // Reusing 'up' frames for 'down'
+            newSpriteShouldBeFlipped = false;         // Assuming 'up' frames are front-facing or symmetrical
+        } else if (angle >= 135 || angle < -135) { // Moving LEFT
+            newAnimationType = 'left';
+            currentSequence = player.animRunLeftFrames;
+            newSpriteShouldBeFlipped = true; // Left frames are inherently left-facing
+        } else { // Moving RIGHT (angle between -45 and 45, X is positive)
+            newAnimationType = 'right';
+            currentSequence = player.animRunLeftFrames; // Use left frames...
+            newSpriteShouldBeFlipped = false;      // ...and flip them
+        }
+        
+        if (newAnimationType !== player.currentAnimationType || player.currentAnimationType === 'idle') { // Reset if type changed or was idle
+            player.currentAnimSequenceIndex = 0;
+            player.animationTick = 0;
+            if (currentSequence) {
+                newFrameValue = currentSequence[0];
+            }
+        }
+        player.currentAnimationType = newAnimationType;
+        player.spriteShouldBeFlipped = newSpriteShouldBeFlipped;
+
+        player.animationTick++;
+        if (player.animationTick >= player.animationSpeed) {
+            player.animationTick = 0;
+            if (currentSequence) {
+                player.currentAnimSequenceIndex = (player.currentAnimSequenceIndex + 1) % currentSequence.length;
+                newFrameValue = currentSequence[player.currentAnimSequenceIndex];
+            }
+        }
+        player.currentAnimFrameValue = newFrameValue;
+
+        const moveAngle = Math.atan2(joystick.inputY, joystick.inputX);
         const magnitude = Math.sqrt(joystick.inputX * joystick.inputX + joystick.inputY * joystick.inputY);
         const normalizedMagnitude = Math.min(1, magnitude);
 
-        let nextX = player.x + Math.cos(angle) * player.speed * normalizedMagnitude;
-        let nextY = player.y + Math.sin(angle) * player.speed * normalizedMagnitude;
+        let nextX = player.x + Math.cos(moveAngle) * player.speed * normalizedMagnitude;
+        let nextY = player.y + Math.sin(moveAngle) * player.speed * normalizedMagnitude;
 
         const prevX = player.x;
         const prevY = player.y;
@@ -280,22 +339,15 @@ function updatePlayerMovement() {
         player.x = nextX;
         player.y = nextY;
 
-        // Update animation frame for running
-        player.animationTick++;
-        if (player.animationTick >= player.animationSpeed) {
-            player.animationTick = 0;
-            player.currentRunFrame = (player.currentRunFrame + 1) % player.runAnimationFrames.length;
-        }
-
         checkCollisions(player, prevX, prevY);
-        if (player.finished) return; // If collision resulted in finishing (e.g. pit), stop here
+        if (player.finished) return; // If collision resulted in finishing
 
         for (const ai of aiOpponents) {
             if (!ai.finished) {
                 resolveCharacterBump(player, ai);
             }
         }
-        if (player.finished) return; // If bump somehow results in finishing (unlikely, but safe check)
+        if (player.finished) return;
 
         if (!player.finished && player.y - player.size / 2 <= finishLine.y + finishLine.height) {
             player.finished = true;
@@ -304,10 +356,16 @@ function updatePlayerMovement() {
                 finishers.push({ id: 'player', time: player.finishTime, isPlayer: true });
             }
             checkAllFinished();
-            // After finishing, player will now be handled by the block at the start of this function to move off screen.
         }
-    } else {
-        player.isMoving = false; // Not actively moving via joystick
+    } else { // Not actively moving via joystick
+        player.isMoving = false;
+        if (player.currentAnimationType !== 'idle') {
+             player.currentAnimSequenceIndex = 0; 
+             player.animationTick = 0;
+        }
+        player.currentAnimationType = 'idle';
+        player.currentAnimFrameValue = player.animIdleFrame; 
+        player.spriteShouldBeFlipped = false; // Default idle not flipped
     }
 }
 
@@ -897,15 +955,16 @@ function init() {
     raceStartTime = performance.now();
     gameState = 'PLAYING'; // Start the game in playing state
 
-    // Load cat spritesheet
-    catSpriteSheet.src = 'roundcat.png';
-    catSpriteSheet.onload = () => {
-        player.spriteSheet = catSpriteSheet;
-        catSpriteSheetLoaded = true;
-        // console.log('Cat spritesheet loaded and assigned to player.');
+    // Load panda spritesheet
+    pandaSpriteSheet.src = 'spritesheets/panda.png';
+    pandaSpriteSheet.onload = () => {
+        player.spriteSheet = pandaSpriteSheet;
+        pandaSpriteSheetLoaded = true;
+        player.currentAnimFrameValue = player.animIdleFrame; // Initialize with idle frame
+        // console.log('Panda spritesheet loaded and assigned to player.');
     };
-    catSpriteSheet.onerror = () => {
-        console.error('Failed to load cat spritesheet.');
+    pandaSpriteSheet.onerror = () => {
+        console.error('Failed to load panda spritesheet.');
     };
 
     // Event listeners
