@@ -6,64 +6,95 @@ This component is a migration of a vanilla JavaScript game. Many features from t
 
 --- GENERAL GAME LOGIC & STATE ---
 - TODO: [State Management] Consider React Context or a lightweight state manager (e.g., Zustand) for shared game state if props drilling becomes too complex.
-- TODO: [Config] Externalize game configurations (hat definitions, avatar definitions, rarity weights, initial player stats, animation settings, sound paths) 
-  instead of hardcoding (see original `config.js`). This could be a separate JS/JSON file imported at the top.
+- TODO: [Config] Externalize game configurations (hat definitions, avatar definitions, rarity weights, initial player stats, animation settings, sound paths)
+  instead of hardcoding (see original `config.js`). This could be a separate JS/JSON file imported at the top. Check `web-client/public/games/metagame/js/config.js`.
+- TODO: [Game Logic Parity - `game.js` review] Cross-reference original `game.js` (especially `feedCat`, `generateHairball`, `openHairball`, main interaction flow, and `gameLoop` structure) with `TitleScreen.js` counterparts (`performFeedCatActions`, `triggerGenerateHairball`, `performOpenHairball`, `handleGameInteraction`, and canvas `useEffect` loop) for any subtle missed game logic, state transitions, or initialization steps (e.g., `game.js` lines ~23-94, ~125-240).
 
 --- HAT SYSTEM (Original: hat.js, hatCollection.js, parts of game.js) ---
 - TODO: [UI - Hat Inventory Modal]
-    - Manage visibility state (e.g., `isHatInventoryOpen`).
-    - Connect "Hat Closet" button (`#hat-closet-button`) and inventory's "Close" button (`#close-inventory`) to toggle this visibility state.
-    - Populate `#hats-grid` with hat items based on data from `hatCollection`, showing images, names, and locked/unlocked status.
-    - Implement functionality for rarity filter buttons (`.rarity-filter`) to update the displayed hats in `#hats-grid`.
-    - Handle selecting an unlocked hat from the inventory to equip it on the cat (should call `catDrawer.wearHat(hatData)`).
+    - Manage visibility state (e.g., `isHatInventoryOpen`): Done.
+    - Connect "Hat Closet" button (`#hat-closet-button`) and inventory's "Close" button (`#close-inventory`) to toggle this visibility state: Done.
+    - Populate `#hats-grid` with hat items based on data from `hatCollection`, showing images, names, and locked/unlocked status: Partially done. Uses `allHatsFromConfig` from `gameConfig.js`. Need to verify against original `hatCollection.js` from `web-client/public/games/metagame/js/hatCollection.js`. 
+      VERIFICATION: Original `hatCollection.js` initialized `Hat` objects from config, managed unlocked set, and provided methods to get all/filtered hats. React version uses plain objects from `gameConfig.js` (`allHatsFromConfig`), `unlockedHats` state in `TitleScreen.js`, and `hatsToDisplayInInventory` (derived from `allHatsFromConfig` and `hatInventoryFilter`) for UI. `getRandomHat` is in `gameUtils.js`. This approach covers the functionalities. The React component correctly displays all hats and their locked/unlocked & equipped status. This can be marked as Done.
+    - Implement functionality for rarity filter buttons (`.rarity-filter`) to update the displayed hats in `#hats-grid`: Done.
+    - Handle selecting an unlocked hat from the inventory to equip it on the cat (should call `catDrawer.wearHat(hatData)`): Done.
+- TODO: [Cat Hat Drawing - `cat.js` & `hat.js` review] 
+    - The original `cat.js` `currentHat.draw()` method suggested hats might have had their own complex drawing logic. 
+    - Specifically, the original `Hat.js` `draw()` method (lines ~26-41) used a non-uniform scale: `ctx.scale(scale * 2, scale)`, making hats appear twice as wide relative to their height. 
+    - Review if `CatDrawer.drawHat()` drawing a single `equippedHatImage` with uniform scaling is sufficient. If the non-uniform scaling or other per-hat drawing logic is desired, `CatDrawer.drawHat()` will need to be updated. 
+    - The current `CatDrawer.drawHat()` uses `avatarConfig.headOffset` for positioning. Consider if individual hats also need their own offset/scale properties in their config in `allHatsFromConfig` to achieve desired visual effects or fine-tune positioning beyond the avatar's head offset.
+- TODO: [Hat Reveal Behavior - `game.js` review] The original `game.js` `openHairball` (lines ~189-230) allowed clicking the dynamically created hat reveal display to equip the hat immediately. The current `TitleScreen.js` `performOpenHairball` shows a reveal then auto-hides it; the hat is unlocked and can be equipped from inventory. This is a UX change. Decide if the original immediate-equip-on-reveal behavior is preferred.
 
 --- AVATAR SYSTEM (Original: implied by HTML, potentially player.js or config.js) ---
-- TODO: [Data] Define Avatar class/object structure and load avatar configurations (e.g., ID, name, spritesheet path or image path).
+- TODO: [Data] Define Avatar class/object structure and load avatar configurations (e.g., ID, name, spritesheet path or image path). See original `web-client/public/games/metagame/js/player.js` or `config.js`.
 - TODO: [Data] Implement Avatar collection/selection logic (similar to hats, track unlocked avatars if applicable).
 - TODO: [UI - Avatar Selector Modal]
-    - Manage visibility state (e.g., `isAvatarSelectorOpen`).
-    - Connect "Change Avatar" button (`#avatar-button`) and selector's "Close" button (`#close-avatar-selector`) to toggle visibility.
-    - Populate `#avatars-grid` with available/unlocked avatars, showing their images/names.
-    - Handle selecting an avatar.
+    - Manage visibility state (e.g., `isAvatarSelectorOpen`): Done.
+    - Connect "Change Avatar" button (`#avatar-button`) and selector's "Close" button (`#close-avatar-selector`) to toggle visibility: Done.
+    - Populate `#avatars-grid` with available/unlocked avatars, showing their images/names: Done. Currently all avatars are available.
+    - Handle selecting an avatar: Done. Calls `handleSelectAvatar`.
     - Update cat's appearance based on the selected avatar. This might involve:
         - Passing the selected avatar's spritesheet path to `CatDrawer`.
-        - `CatDrawer` reloading its spritesheet or having different drawing logic per avatar.
+        - `CatDrawer` reloading its spritesheet or having different drawing logic per avatar.: Done, via `CatDrawer.setAvatar()`.
+- TODO: [Avatar Filtering - `game.js` reference] The original `game.js` had UI and stubs for avatar filtering (e.g., `filterAvatars(e.target.dataset.type)`, lines ~50-53, ~313-370 in `game.js`), similar to hat rarity filters. Currently, `TitleScreen.js` displays all avatars. Consider if avatar filtering (e.g., by type, if avatars are categorized) is a desired feature and implement if so.
+- TODO: [Avatar Sprites & Animations - Migrated Avatars] Review and customize `frameWidth`, `frameHeight` (128x128 for migrated vs 287x287 for `defaultCat`), and `animationRows` (especially placeholder `eating`, `coughing` rows) for all avatars migrated into `gameConfig.js` from the original `config.js`. Ensure `spritesheetPath` and `headOffset` are correct for each. Original avatars also had `frames: 1` for idle, which implies no idle animation; current `CatDrawer` animates idle if `totalFrames > 1`.
 
 --- CAT & CANVAS (Original: Cat.js, Background.js, Animations.js, Game.js loop) ---
-- TODO: [Cat Sprites] Verify `animationRow` indices in `CatDrawer` for all actions (idle, eating, coughing, click-with-treats, click-no-treats)
-  against the actual `fatcat.png` spritesheet layout. Adjust as necessary.
-- TODO: [Cat Drawing] The original `cat.js` `draw()` method drew the cat sprite at `this.frameWidth * 2` width with an offset `-this.frameWidth`.
-  The current `CatDrawer.draw()` is simplified. Review and match original visuals if required.
-- TODO: [Cat Hat] Implement `CatDrawer.wearHat(hatData)` to store the current hat.
-- TODO: [Cat Hat] Implement `CatDrawer.drawHat()`: needs to load the hat's image (if not already loaded) and draw it at the correct position
-  relative to the cat's head, considering cat's scale and animation frame. (See original `cat.js -> drawHat`).
-- TODO: [Cat State] Refine cat animation details in `CatDrawer` (frame rates, smooth transitions between states, e.g., from eating back to idle).
-- TODO: [Cat Interaction] Consider implementing `CatDrawer.blockingTaps` (controlled by React state) to prevent interactions during critical animations,
-  if the current brief flag-based approach in `startClickAnimation` is insufficient.
-- TODO: [Advanced Animations] Investigate and migrate the `AnimationSystem` from `animations.js` (e.g., `AnimationSystem.AnimationManager`, `HairballAnimation`)
-  This might be for effects like the hairball moving or special reveals. Consider using a React-friendly animation library or custom components.
+- TODO: [Background Logic - `background.js`] Verify that `BackgroundDrawer.js` correctly implements the logic from the original `web-client/public/games/metagame/js/background.js` (loading, drawing, scaling, and resizing of `fishbg.png` - now `bg.png`).: Done. `BackgroundDrawer.js` appears to cover this.
+- TODO: [Cat Sprites - `cat.js` review] Verify `animationRow` indices (now from `avatarConfig.animationRows`) and `totalFrames` in `CatDrawer` for all actions (idle, eating, coughing, click-with-treats, click-no-treats) against the actual spritesheet layouts for `fatcat.png` and any new avatars. Adjust `avatarConfig` in `gameConfig.js` and `CatDrawer` logic as necessary. The `totalFrames` is currently hardcoded in `CatDrawer`; determine if this should be part of `avatarConfig.animationRows[action].frameCount`. Refer to original `web-client/public/games/metagame/js/Cat.js` (lines ~25-33, and animation methods).
+- TODO: [Cat Drawing Visuals - `cat.js` review] The original `cat.js` `draw()` method (lines ~103-118) drew the cat sprite at `this.frameWidth * 2` width with an offset `-this.frameWidth`. The current `CatDrawer.draw()` is simplified (uses `this.frameWidth` and centers with `-this.frameWidth / 2`). Review and match original visuals if this wider cat appearance is required.
+- TODO: [Cat Hat - `CatDrawer.wearHat`] Implement `CatDrawer.wearHat(hatData)` to store the current hat: Done in `CatDrawer.js`.
+- TODO: [Cat Hat - `CatDrawer.drawHat`] Implement `CatDrawer.drawHat()`: needs to load the hat's image (if not already loaded) and draw it at the correct position relative to the cat's head, considering cat's scale and animation frame. (See original `cat.js -> drawHat`, lines ~229-246). Partially done in `CatDrawer.js`, uses `avatarConfig.headOffset`. Refinement for perfect positioning per hat/avatar might be ongoing.
+- TODO: [Cat State - `cat.js` review] Refine cat animation details in `CatDrawer` (frame rates via `frameDelay`, `coughFrameDelay`, `eatFrame0Delay`; smooth transitions between states, e.g., from eating back to idle). Compare with original `cat.js` `update()` (lines ~52-90) and animation methods (`startEating`, `startCoughing`, etc.) to ensure behavior parity if desired.
+- TODO: [Cat Interaction - `cat.js` review] The original `cat.js` used a `blockingTaps` flag (lines ~19, ~195-200), set during coughing, to prevent interactions. The current React version has some implicit blocking in `CatDrawer.startClickAnimation` and `handleGameInteraction`. Re-evaluate if a more explicit, React state-driven `blockingTaps` mechanism is needed for robustness during critical animations (e.g., coughing, reveal sequences). This could be a state variable in `TitleScreen.js` passed to relevant interaction handlers or to `CatDrawer`.
+- TODO: [Cat Feature - Separate Avatar Display - `cat.js` review] The original `cat.js` `draw()` method (lines ~121-152) included logic to display a small, separate avatar image (potentially of the player's chosen character/icon) with a name tag at a fixed position on the screen (bottom-left). This is *not* the main interactive cat. Decide if this UI feature is desired in the React version. If so, implement it, possibly as a new React component overlaid on the canvas or drawn directly by `TitleScreen` if it's part of the game view.
+- TODO: [Advanced Animations] Investigate and migrate the `AnimationSystem` from `web-client/public/games/metagame/js/animations.js`. This includes:
+    - `AnimationManager`: Re-implement or migrate for managing active canvas animations within `TitleScreen.js` game loop.
+    - `HairballAnimation` (used in original `game.js`):
+        - Cat shake effect: Determine how to apply to `CatDrawer` (e.g., modify `CatDrawer` or pass offsets from animation).
+        - Particle generation: Depends on migrating the particle system from `utils.js`.
+    - `HatRevealAnimation`:
+        - Compare with current CSS-based hat reveal. Decide if a canvas-based animation with particles (from `utils.js`) and specific easing (e.g., `Easing.bounce` from `utils.js`) is preferred for the hat reveal sequence.
+        - Depends on particle system and `Easing` functions.
+    - `SquashStretchAnimation`: A general utility animation. Migrate if needed for dynamic UI feedback on canvas elements (e.g., cat, buttons if drawn on canvas).
+    - Dependencies: Note that these animations rely on the particle system and `Easing` functions from the original `utils.js` which also need migration (see `[Visual Effects - Particle System]` and `[Game Utils - Easing]` TODOs).
+- TODO: [Visual Effects - Particle System - `utils.js` review] The original `utils.js` (lines ~40-70) included functions for a simple particle system (`createParticle`, `updateParticles`, `drawParticles`). If particle effects (e.g., for clicks, reveals, other visual feedback) are desired, this system should be migrated or re-implemented for drawing on the canvas.
 
 --- UI & INTERACTIONS (Original: index.html, game.js) ---
-- TODO: [Play Button] Implement functionality for the "Play" button (`#play-button`) if it's intended to do more than the current general click interaction (e.g., start game, tutorial).
+- TODO: [Play Button] Implement functionality for the "Play" button (`#play-button`) if it's intended to do more than the current general click interaction (e.g., start game, tutorial). Currently logs to console. See original `web-client/public/games/metagame/js/game.js` for original behavior (if any beyond triggering general interaction).
 - TODO: [Targeted Interaction] Refine `handleGameInteraction`: instead of the entire `ui-overlay`, consider making only the cat area on the canvas clickable for feeding.
-  This would involve checking click coordinates against the cat's bounding box on the canvas.
+  This would involve checking click coordinates against the cat's bounding box on the canvas. See original `web-client/public/games/metagame/js/game.js` (`handleClick`, `handleTouch` lines ~103-122, which passed coordinates to `handleInteraction`).
+- TODO: [Touch Handling - `game.js` review] The original `game.js` `handleTouch` method (lines ~113-122) called `event.preventDefault()`. Review if this is necessary or beneficial for `handleGameInteraction` in `TitleScreen.js` when triggered by touch events on mobile devices to prevent default browser behaviors like scrolling or zooming during game interaction. Original `utils.js` also had `getTouchPosition` (lines ~99-105) for extracting touch coordinates, which might be relevant if more complex touch processing is needed.
+- TODO: [UI Icon Updates - `game.js` review] Original `game.js` had `updateHatIcon()` and `updateAvatarIcon()` methods (lines ~296, ~393) to change UI elements (e.g. button icons) based on equipped items. Verify that React's declarative rendering in `TitleScreen.js` (e.g., in `#top-bar` buttons) correctly reflects current `equippedHatId` and `currentAvatarId` visually, covering the intent of these original functions.
 
 --- SOUNDS (Original: utils.js, game.js, cat.js) ---
 - TODO: [Sound System] Implement a robust sound management system. Preload sounds or load on demand.
-  Play sounds for events: cat eating, coughing, hairball reveal, UI button clicks, etc. (Original `GameUtils.playSound`).
+  Play sounds for events: cat eating (original `cat.js` line ~167), coughing, hairball reveal, UI button clicks, etc. (Original `GameUtils.playSound` from `web-client/public/games/metagame/js/utils.js`, line ~26).
   Consider using a library like Howler.js or Web Audio API directly, managed via React hooks/context.
 
 --- UTILITIES & CODE STRUCTURE ---
-- TODO: [Refactor] Move `loadImage`, `BackgroundDrawer`, `CatDrawer` into their own files (e.g., under `src/web-client/src/game/` or `src/web-client/src/canvas/`)
-  and import them into `TitleScreen.js`.
-- TODO: [Game Utils] Create a `GameUtils.ts` (or `.js`) module for common functions like `getRandomRarity(weights)`, `RARITY_COLORS`, etc., from original `utils.js`.
+- TODO: [Refactor] Move `loadImage`, `BackgroundDrawer`, `CatDrawer` into their own files: Done for `BackgroundDrawer` and `CatDrawer` (now in `src/canvas/`). `loadImage` is in `src/gameConfig.js` (originally from `utils.js`).
+- TODO: [Game Utils - `utils.js` review] Create a `GameUtils.js` (or `.ts`) module in `src/utils/` for common functions. Original `utils.js` contained:
+    - `RARITY_WEIGHTS`: Migrated to `gameConfig.js`. Note: original tiers/weights differ from current `gameConfig.js`.
+    - `RARITY_COLORS`: Original `utils.js` (lines ~8-12) defined these. Current app uses CSS for rarity styling. If JS access to these specific colors is needed (e.g., for canvas drawing), they should be added to `gameConfig.js` or the new utils module.
+    - `getRandomRarity()`: Migrated to `src/utils/gameUtils.js`.
+    - `loadImage()`: Migrated to `src/gameConfig.js`.
+    - `playSound()`: Tracked by `[Sound System]` TODO.
+    - `saveGameState()` / `loadGameState()`: Handled by `useEffect` in `TitleScreen.js`.
+    - Particle System (`createParticle`, etc.): See `[Visual Effects - Particle System]` TODO.
+    - `Easing` functions (lines ~73-96 in original `utils.js`): Consider migrating these to the new utils module if needed for advanced animations.
+    - `isMobile` detection (line ~98): Consider migrating this utility if responsive JS logic is needed.
+    - `getTouchPosition()`: Noted in `[Touch Handling]` TODO.
 - TODO: [Error Handling] Add more robust error handling (e.g., for image loading, state transitions).
 - TODO: [Cleanup] Review and remove all temporary `console.log` statements once features are stable.
 
 */
 import React from 'react';
 import './styles.css'; // Import the newly added CSS file
-import { fullnessThreshold, mockHat, allHats, rarityWeights, loadImage } from './gameConfig'; // Import configurations and loadImage
+import { fullnessThreshold, mockHat, allHats as allHatsFromConfig, rarityWeights, loadImage, allAvatars, getAvatarConfig, defaultAvatarId, avatarCategories, getAvatarType } from './gameConfig'; // Added allAvatars, getAvatarConfig, defaultAvatarId, avatarCategories, getAvatarType
+import BackgroundDrawer from './canvas/BackgroundDrawer';
+import CatDrawer from './canvas/CatDrawer';
+import { getRandomRarity, getRandomHat } from './utils/gameUtils';
 // It's likely you'll need to import the CSS from the metagame.
 // For example, you might copy `games/metagame/styles.css` to this directory
 // or a shared styles directory and then import it:
@@ -98,278 +129,41 @@ import { fullnessThreshold, mockHat, allHats, rarityWeights, loadImage } from '.
 // };
 
 // Simplified Background class for drawing (can be moved to its own file later)
-class BackgroundDrawer {
-  constructor(canvas, ctx) {
-    this.canvas = canvas;
-    this.ctx = ctx;
-    this.image = null;
-    this.loadBackgroundImage('/assets/fishbg.png'); // Path for public/assets/
-  }
+// class BackgroundDrawer { // MOVED to ./canvas/BackgroundDrawer.js
+// constructor(canvas, ctx) {
+// this.canvas = canvas;
+// this.ctx = ctx;
+// ... existing code ...
+//   // For now, direct canvas.width/height update in resize listener is more direct.
+// }
 
-  async loadBackgroundImage(src) {
-    try {
-      this.image = await loadImage(src);
-      console.log('Background image loaded for React component', this.image);
-    } catch (error) {
-      console.error('Failed to load background image for React component:', error);
-    }
-  }
-
-  draw() {
-    if (!this.image || !this.canvas || !this.ctx) {
-      // console.log('Waiting for background image or canvas context...');
-      return;
-    }
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const scale = Math.max(
-      this.canvas.width / this.image.width,
-      this.canvas.height / this.image.height
-    );
-    const scaledWidth = this.image.width * scale;
-    const scaledHeight = this.image.height * scale;
-    const x = (this.canvas.width - scaledWidth) / 2;
-    const y = (this.canvas.height - scaledHeight) / 2;
-    this.ctx.drawImage(this.image, x, y, scaledWidth, scaledHeight);
-  }
-
-  // handleResize could be called if canvas CSS dimensions change relative to pixel dimensions
-  // For now, direct canvas.width/height update in resize listener is more direct.
-}
-
-class CatDrawer {
-  constructor(canvas, ctx) {
-    this.canvas = canvas;
-    this.ctx = ctx;
-    this.spritesheet = null;
-    this.x = canvas.width / 2;
-    this.y = canvas.height * 0.4;
-    this.scale = Math.min(canvas.width / 1500, canvas.height / 1500) * 1.6;
-    this.rotation = 0;
-    this.alpha = 1;
-
-    this.isIdle = true;
-    this.isEating = false;
-    this.isCoughing = false;
-    this.isClickAnimating = false;
-    // this.blockingTaps = false; // Will be managed by React state if needed
-    this.coughPauseTime = 0;
-
-    this.equippedHatData = null;
-    this.equippedHatImage = null;
-
-    this.frameWidth = 287;
-    this.frameHeight = 287;
-    this.currentFrame = 0;
-    this.frameCount = 0; // Renamed from original to avoid conflict with sprite frameCount
-    this.animFrameCount = 0; // Internal counter for animation frame delay
-    this.frameDelay = 16;
-    this.coughFrameDelay = 32;
-    this.eatFrame0Delay = 48;
-    this.totalFrames = 3;
-    this.animationRow = 2; // Idle
-
-    this.loadSprites();
-  }
-
-  async loadSprites() {
-    try {
-      this.spritesheet = await loadImage('/assets/fatcat.png'); // Path for public/assets/
-      console.log('Cat spritesheet loaded:', this.spritesheet);
-    } catch (error) {
-      console.error('Failed to load cat spritesheet:', error);
-    }
-  }
-
-  update() {
-    if (!this.spritesheet) return;
-
-    if (this.isCoughing) {
-      if (this.coughPauseTime > 0) {
-        this.coughPauseTime--;
-        return;
-      }
-      this.animFrameCount++;
-      if (this.animFrameCount >= this.coughFrameDelay) {
-        this.animFrameCount = 0;
-        this.currentFrame = (this.currentFrame + 1) % this.totalFrames;
-      }
-      return;
-    }
-
-    this.animFrameCount++;
-    const currentDelay = (this.isEating && this.currentFrame === 0) ? this.eatFrame0Delay : this.frameDelay;
-
-    if (this.animFrameCount >= currentDelay) {
-      this.animFrameCount = 0;
-      if (this.isClickAnimating || this.isEating) {
-        this.currentFrame++;
-        if (this.currentFrame >= this.totalFrames) {
-          this.isClickAnimating = false;
-          this.isEating = false;
-          this.currentFrame = 0;
-          this.animationRow = 2; // Return to idle
-          this.isIdle = true;
-        }
-      } else {
-        // Idle - simple animation or static frame if desired
-        // For now, let cat stay on frame 0 of idle row
-        this.currentFrame = 0;
-        this.animationRow = 2;
-        this.isIdle = true;
-      }
-    }
-  }
-
-  draw() {
-    if (!this.spritesheet || !this.canvas || !this.ctx) return;
-    this.ctx.save();
-    this.ctx.translate(this.x, this.y);
-    this.ctx.rotate(this.rotation);
-    this.ctx.scale(this.scale, this.scale);
-    this.ctx.globalAlpha = this.alpha;
-
-    const sourceX = this.currentFrame * this.frameWidth;
-    const sourceY = this.animationRow * this.frameHeight;
-
-    try {
-      this.ctx.drawImage(
-        this.spritesheet,
-        sourceX, sourceY,
-        this.frameWidth, this.frameHeight,
-        -this.frameWidth / 2, -this.frameHeight / 2, // Centered drawing
-        this.frameWidth, this.frameHeight
-        // Original code had *2 width and offset, simplified for now
-      );
-    } catch (error) {
-      console.error('Error drawing cat:', error);
-    }
-    this.ctx.restore();
-    this.drawHat(); // Draw hat after cat
-  }
-
-  handleResize() {
-    if (!this.canvas) return;
-    this.x = this.canvas.width / 2;
-    this.y = this.canvas.height * 0.4;
-    this.scale = Math.min(this.canvas.width / 1500, this.canvas.height / 1500) * 1.6;
-    this.currentFrame = 0;
-    this.animFrameCount = 0;
-    this.animationRow = 1; // Assuming row 1 is coughing
-    this.coughPauseTime = 60; // ~1 second
-  }
-
-  startEating() {
-    console.log("CatDrawer: startEating");
-    this.isIdle = false;
-    this.isEating = true;
-    this.isCoughing = false;
-    this.isClickAnimating = false;
-    this.currentFrame = 0;
-    this.animFrameCount = 0;
-    this.animationRow = 0; // Assuming row 0 is eating, adjust if different
-    // TODO: Play sound via React state/effects if needed
-  }
-
-  startCoughing() {
-    console.log("CatDrawer: startCoughing");
-    this.isIdle = false;
-    this.isEating = false;
-    this.isCoughing = true;
-    this.isClickAnimating = false;
-    this.currentFrame = 0;
-    this.animFrameCount = 0;
-    this.animationRow = 1; // Assuming row 1 is coughing
-    this.coughPauseTime = 60; // ~1 second
-  }
-
-  startClickAnimation(hasTreats) {
-    console.log("CatDrawer: startClickAnimation, hasTreats:", hasTreats);
-    if (this.isEating || this.isCoughing) return; // Don't interrupt eating/coughing
-    this.isIdle = false;
-    this.isClickAnimating = true;
-    this.currentFrame = 0;
-    this.animFrameCount = 0;
-    this.animationRow = hasTreats ? 0 : 2; // Row 0 for treat interaction, Row 2 for no-treat/idle tap
-    // This might need adjustment based on spritesheet layout.
-    // Original used row 0 for click with treats.
-  }
-
-  async wearHat(hatData) {
-    if (!hatData) {
-      this.equippedHatData = null;
-      this.equippedHatImage = null;
-      console.log("CatDrawer: hat unequipped");
-      return;
-    }
-    this.equippedHatData = hatData;
-    this.equippedHatImage = null; // Clear previous image while new one loads
-    console.log("CatDrawer: attempting to wear hat", hatData.name);
-    try {
-      this.equippedHatImage = await loadImage(hatData.imagePath);
-      console.log("CatDrawer: hat image loaded", hatData.name, this.equippedHatImage);
-    } catch (error) {
-      console.error("CatDrawer: failed to load hat image", hatData.name, error);
-      this.equippedHatData = null; // Failed to load, so no hat
-    }
-  }
-
-  drawHat() {
-    if (!this.equippedHatImage || !this.ctx) return;
-
-    // Basic hat positioning - this will need significant adjustment!
-    // These are placeholder values. The original game likely had more precise logic.
-    const hatXOffset = 0; // Adjust as needed
-    const hatYOffset = -this.frameHeight / 2.5; // e.g., place above the cat's sprite center
-    const hatScale = this.equippedHatData.scale || 0.5; // Assuming hat might have its own scale, or default
-
-    this.ctx.save();
-    // Translate to the cat's drawing position, then apply hat-specific offsets
-    this.ctx.translate(this.x + hatXOffset, this.y + hatYOffset);
-    // TODO: Consider cat's rotation if hats should rotate with the cat (this.rotation)
-    this.ctx.scale(this.scale * hatScale, this.scale * hatScale); // Apply cat's scale and hat's relative scale
-    this.ctx.globalAlpha = this.alpha; // Apply cat's alpha
-
-    try {
-      // Draw the hat image centered at its new relative origin
-      // Assumes hat images are designed with their center as the anchor point, or adjust as needed.
-      const hatWidth = this.equippedHatImage.width;
-      const hatHeight = this.equippedHatImage.height;
-
-      this.ctx.drawImage(
-        this.equippedHatImage,
-        -hatWidth / 2, -hatHeight / 2, // Draw centered
-        hatWidth, hatHeight
-      );
-    } catch (error) {
-      console.error('Error drawing hat:', error);
-    }
-    this.ctx.restore();
-  }
-}
+// class CatDrawer { // MOVED to ./canvas/CatDrawer.js
+// constructor(canvas, ctx) {
+// this.canvas = canvas;
+// this.ctx = ctx;
+// ... existing code ...
+//   this.ctx.restore();
+// }
+// }
 
 function TitleScreen() {
   const canvasRef = React.useRef(null);
-  const catDrawerRef = React.useRef(null); // Ref to store CatDrawer instance
-  const [treats, setTreats] = React.useState(10); // Initial treats
+  const catDrawerRef = React.useRef(null);
+  const [treats, setTreats] = React.useState(10);
   const [fullness, setFullness] = React.useState(0);
-  const [unlockedHats, setUnlockedHats] = React.useState(new Set()); // TODO: Initialize from localStorage
-  const [currentAvatarId, setCurrentAvatarId] = React.useState('defaultCat'); // TODO: Initialize from localStorage
-  const [equippedHatId, setEquippedHatId] = React.useState(null); // TODO: Initialize from localStorage
+  const [unlockedHats, setUnlockedHats] = React.useState(new Set());
+  const [playerDisplayAvatarId, setPlayerDisplayAvatarId] = React.useState(defaultAvatarId);
+  const [playerDisplayAvatarSprite, setPlayerDisplayAvatarSprite] = React.useState('assets/avatars/tabby.png');
+  const [equippedHatId, setEquippedHatId] = React.useState(null);
   const [isHairballActive, setIsHairballActive] = React.useState(false);
   const [currentHairball, setCurrentHairball] = React.useState(null);
-  // State for the hat data to be revealed
   const [hatForReveal, setHatForReveal] = React.useState(null);
-  // State to control visibility of the reveal overlay
   const [isRevealOverlayVisible, setIsRevealOverlayVisible] = React.useState(false);
   const [isHatInventoryOpen, setIsHatInventoryOpen] = React.useState(false);
-  const [hatInventoryFilter, setHatInventoryFilter] = React.useState('all'); // For hat inventory rarity filter
-  // const fullnessThreshold = 10; // From game.js -> Now imported
+  const [hatInventoryFilter, setHatInventoryFilter] = React.useState('all');
+  const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = React.useState(false);
+  const [avatarFilter, setAvatarFilter] = React.useState('all');
 
-  // TODO: Later, implement feedCat logic which will call setTreats(prevTreats => prevTreats - 1)
-  // and other game interactions that modify treats.
-  // TODO: Implement actual feedCat and generateHairball logic for fullness
-
-  // Effect for loading game state from localStorage on component mount
   React.useEffect(() => {
     const savedGameState = localStorage.getItem('metagameGameState');
     if (savedGameState) {
@@ -378,28 +172,29 @@ function TitleScreen() {
         if (loadedState.treats !== undefined) setTreats(loadedState.treats);
         if (loadedState.fullness !== undefined) setFullness(loadedState.fullness);
         if (loadedState.unlockedHats !== undefined) setUnlockedHats(new Set(loadedState.unlockedHats));
-        if (loadedState.currentAvatarId !== undefined) setCurrentAvatarId(loadedState.currentAvatarId);
+        if (loadedState.playerDisplayAvatarId !== undefined) setPlayerDisplayAvatarId(loadedState.playerDisplayAvatarId);
+        else setPlayerDisplayAvatarId(defaultAvatarId);
         if (loadedState.equippedHatId !== undefined) setEquippedHatId(loadedState.equippedHatId);
         console.log('Game state loaded from localStorage:', loadedState);
       } catch (error) {
         console.error('Failed to parse game state from localStorage:', error);
-        // Initialize with defaults if parsing fails or state is corrupted
         setTreats(10);
         setFullness(0);
         setUnlockedHats(new Set());
-        setCurrentAvatarId('defaultCat');
+        setPlayerDisplayAvatarId(defaultAvatarId);
         setEquippedHatId(null);
       }
+    } else {
+      setPlayerDisplayAvatarId(defaultAvatarId);
     }
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
-  // Effect for saving game state to localStorage whenever relevant state changes
   React.useEffect(() => {
     const gameStateToSave = {
       treats,
       fullness,
-      unlockedHats: Array.from(unlockedHats), // Convert Set to Array for JSON serialization
-      currentAvatarId,
+      unlockedHats: Array.from(unlockedHats),
+      playerDisplayAvatarId,
       equippedHatId,
     };
     try {
@@ -408,33 +203,47 @@ function TitleScreen() {
     } catch (error) {
       console.error('Failed to save game state to localStorage:', error);
     }
-  }, [treats, fullness, unlockedHats, currentAvatarId, equippedHatId]);
+  }, [treats, fullness, unlockedHats, playerDisplayAvatarId, equippedHatId]);
 
-  // Effect for canvas setup and game loop
   React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Match canvas rendering size to its display size
-    // The CSS aims for a max-width: 450px and aspect-ratio: 9/16 within a 100vh container.
-    // We need to ensure the canvas internal resolution matches its styled size.
     const setupCanvasDimensions = () => {
-      // Get the actual display size of the canvas element
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
-      console.log(`Canvas dimensions set to: ${canvas.width}x${canvas.height}`);
       if (catDrawerRef.current) catDrawerRef.current.handleResize();
     };
 
     const context = canvas.getContext('2d');
     if (!context) return;
 
+    const chosenAvatarConfig = getAvatarConfig(defaultAvatarId);
+
+    if (!chosenAvatarConfig) {
+      console.error("Could not load main interactive cat configuration!");
+      return;
+    }
+
     const backgroundDrawer = new BackgroundDrawer(canvas, context);
-    catDrawerRef.current = new CatDrawer(canvas, context); // Store instance
+    catDrawerRef.current = new CatDrawer(canvas, context, chosenAvatarConfig);
+
+    if (equippedHatId) {
+      const hatToEquip = allHatsFromConfig.find(h => h.id === equippedHatId);
+      if (hatToEquip && catDrawerRef.current) {
+        catDrawerRef.current.wearHat(hatToEquip);
+      }
+    }
+
+    if (playerDisplayAvatarId && catDrawerRef.current) {
+      const playerAvatarConfig = getAvatarConfig(playerDisplayAvatarId);
+      if (playerAvatarConfig) {
+        catDrawerRef.current.setPlayerAvatarDisplay(playerAvatarConfig);
+      }
+    }
 
     let animationFrameId;
-
     const gameLoop = () => {
       backgroundDrawer.draw();
       if (catDrawerRef.current) {
@@ -446,65 +255,25 @@ function TitleScreen() {
 
     const handleResize = () => {
       setupCanvasDimensions();
-      // No explicit call to backgroundDrawer.handleResize needed as draw() recalculates.
-      // If CatDrawer needs specific resize handling, call it here.
     };
 
     window.addEventListener('resize', handleResize);
-    setupCanvasDimensions(); // Initial setup
-    gameLoop(); // Start the loop
+    setupCanvasDimensions();
+    gameLoop();
 
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
     };
-  }, []); // Empty dependency array to run once on mount
+  }, []);
 
-  // Helper function to get a random rarity based on weights
-  const getRandomRarity = () => {
-    const rand = Math.random();
-    let cumulativeProbability = 0;
-    for (const rarity in rarityWeights) {
-      cumulativeProbability += rarityWeights[rarity];
-      if (rand < cumulativeProbability) {
-        return rarity;
-      }
-    }
-    return 'common'; // Fallback, should not be reached if weights sum to 1
-  };
-
-  // Helper function to get a random hat, potentially filtered by rarity
-  const getRandomHat = (targetRarity = null) => {
-    const selectedRarity = targetRarity || getRandomRarity();
-    const hatsOfSelectedRarity = allHats.filter(hat => hat.rarity === selectedRarity);
-
-    if (hatsOfSelectedRarity.length > 0) {
-      const randomIndex = Math.floor(Math.random() * hatsOfSelectedRarity.length);
-      return hatsOfSelectedRarity[randomIndex];
-    } else {
-      // Fallback: if no hats of the selected rarity, try to get any common hat or any hat if no common
-      const commonHats = allHats.filter(hat => hat.rarity === 'common');
-      if (commonHats.length > 0) {
-        const randomIndex = Math.floor(Math.random() * commonHats.length);
-        return commonHats[randomIndex];
-      }
-      // If still no hat, return any hat (or null/undefined if allHats is empty)
-      if (allHats.length > 0) {
-        const randomIndex = Math.floor(Math.random() * allHats.length);
-        return allHats[randomIndex];
-      }
-    }
-    return null; // Should not happen if allHats is populated
-  };
-
-  // Helper function to get unlocked hats, optionally filtered by rarity
   const getHatsByRarity = (rarityFilter = 'all') => {
     if (!unlockedHats || unlockedHats.size === 0) {
-      return []; // No hats unlocked yet
+      return [];
     }
 
     let filteredHats = [];
-    for (const hat of allHats) {
+    for (const hat of allHatsFromConfig) {
       if (unlockedHats.has(hat.id)) {
         if (rarityFilter === 'all' || hat.rarity === rarityFilter) {
           filteredHats.push(hat);
@@ -517,14 +286,11 @@ function TitleScreen() {
   const triggerGenerateHairball = () => {
     if (catDrawerRef.current) catDrawerRef.current.startCoughing();
 
-    const randomHat = getRandomHat(); // Get a random hat based on rarity weights
+    const randomHat = getRandomHat();
 
     if (!randomHat) {
       console.error("Could not get a random hat. Check hat configurations and rarity weights.");
-      // Potentially use a default/fallback hat if randomHat is null
-      // For now, we'll proceed, but performOpenHairball might have issues if currentHairball is not set
-      // setCurrentHairball(mockHat); // Fallback to old mockHat if needed, but ideally getRandomHat always returns something
-      return; // Exit if no hat could be determined
+      return;
     }
 
     const newHairball = {
@@ -533,7 +299,6 @@ function TitleScreen() {
     };
     setCurrentHairball(newHairball);
     setIsHairballActive(true);
-    // TODO: Play cat coughing animation
     console.log(`Hairball generated with ${randomHat.name}! Click overlay to open.`);
   };
 
@@ -546,26 +311,23 @@ function TitleScreen() {
       const newFullness = prevFullness + 1;
       if (newFullness >= fullnessThreshold) {
         triggerGenerateHairball();
-        return 0; // Fullness resets as hairball is generated
+        return 0;
       } else {
         return newFullness;
       }
     });
-    // TODO: Save game state
   };
 
   const performOpenHairball = () => {
     if (!isHairballActive || !currentHairball) return;
 
     console.log('Opening hairball for:', currentHairball.hat.name);
-    setHatForReveal(currentHairball.hat); // Set the hat data for reveal
-    setIsRevealOverlayVisible(true);       // Make the overlay visible
+    setHatForReveal(currentHairball.hat);
+    setIsRevealOverlayVisible(true);
 
-    // TODO: Implement hat unlocking logic (e.g., update a list of unlocked hats in state/context)
-    // This is where we would update unlockedHats state
     setUnlockedHats(prevUnlockedHats => {
       const newUnlockedHats = new Set(prevUnlockedHats);
-      newUnlockedHats.add(currentHairball.hat.id); // Assuming hat object has an 'id'
+      newUnlockedHats.add(currentHairball.hat.id);
       return newUnlockedHats;
     });
     console.log(`${currentHairball.hat.name} unlocked!`);
@@ -577,12 +339,9 @@ function TitleScreen() {
   React.useEffect(() => {
     let revealTimer;
     if (isRevealOverlayVisible && hatForReveal) {
-      // Automatically hide the reveal overlay after a few seconds
       revealTimer = setTimeout(() => {
         setIsRevealOverlayVisible(false);
-        // Optionally clear hatForReveal after animation, though CSS transition handles visual disappearance
-        // setTimeout(() => setHatForReveal(null), 500); // delay for CSS transition
-      }, 3000); // Display for 3 seconds
+      }, 3000);
     }
     return () => {
       clearTimeout(revealTimer);
@@ -590,7 +349,6 @@ function TitleScreen() {
   }, [isRevealOverlayVisible, hatForReveal]);
 
   const handleGameInteraction = (event) => {
-    // Only respond to direct clicks on the overlay, not on its children (buttons, etc.)
     if (event.target !== event.currentTarget) {
       return;
     }
@@ -598,20 +356,23 @@ function TitleScreen() {
     if (isHairballActive) {
       performOpenHairball();
     } else if (treats > 0) {
-      // Trigger click animation before feeding
       if (catDrawerRef.current) catDrawerRef.current.startClickAnimation(treats > 0);
       performFeedCatActions();
     } else {
-      if (catDrawerRef.current) catDrawerRef.current.startClickAnimation(false); // Click animation with no treats
+      if (catDrawerRef.current) catDrawerRef.current.startClickAnimation(false);
       console.log("No treats to feed!");
-      // TODO: Play "no treats" sound or show a message
     }
   };
 
   const handleAddTreats = () => {
     setTreats(prevTreats => prevTreats + 10);
-    // Original debug button no longer directly manipulates fullness here
-    // Fullness is now only driven by feedCat or direct debug if we add one for it.
+  };
+
+  const toggleAvatarSelector = () => {
+    setIsAvatarSelectorOpen(prev => !prev);
+    if (!isAvatarSelectorOpen) {
+      setAvatarFilter('all');
+    }
   };
 
   const toggleHatInventory = () => {
@@ -623,66 +384,90 @@ function TitleScreen() {
   };
 
   const handleEquipHat = (hatId) => {
-    const hatToEquip = allHats.find(h => h.id === hatId);
+    const hatToEquip = allHatsFromConfig.find(h => h.id === hatId);
     if (hatToEquip) {
       if (!unlockedHats.has(hatId)) {
         console.log("Cannot equip locked hat:", hatToEquip.name);
-        // Optionally, provide visual feedback to the user that the hat is locked
         return;
       }
       setEquippedHatId(hatId);
       if (catDrawerRef.current) {
-        catDrawerRef.current.wearHat(hatToEquip); // Method to be added to CatDrawer
+        catDrawerRef.current.wearHat(hatToEquip);
       }
       console.log('Equipping hat:', hatToEquip.name);
-      setIsHatInventoryOpen(false); // Close inventory after selection
+      setIsHatInventoryOpen(false);
     } else {
       console.error('Could not find hat with id:', hatId);
     }
   };
 
-  // Memoize the list of hats to display in the inventory
+  const handlePlayButtonClick = () => {
+    console.log("Play button clicked!");
+  };
+
   const hatsToDisplayInInventory = React.useMemo(() => {
     if (hatInventoryFilter === 'all') {
-      return allHats;
+      return allHatsFromConfig;
     }
-    return allHats.filter(hat => hat.rarity === hatInventoryFilter);
-  }, [hatInventoryFilter]); // allHats is stable from import, so only hatInventoryFilter is a dependency
+    return allHatsFromConfig.filter(hat => hat.rarity === hatInventoryFilter);
+  }, [hatInventoryFilter]);
+
+  const avatarsToDisplayInSelector = React.useMemo(() => {
+    if (avatarFilter === 'all' || !avatarCategories[avatarFilter]) {
+      return allAvatars;
+    }
+    if (avatarCategories[avatarFilter].filterFn) {
+      return allAvatars.filter(avatar => avatarCategories[avatarFilter].filterFn(avatar));
+    }
+    return allAvatars.filter(avatar => avatarCategories[avatarFilter].ids.includes(avatar.id));
+  }, [avatarFilter]);
+
+  const handleSelectAvatar = async (avatarId) => {
+    const selectedAvatarConfig = getAvatarConfig(avatarId);
+    if (selectedAvatarConfig && catDrawerRef.current) {
+      try {
+        await catDrawerRef.current.setPlayerAvatarDisplay(selectedAvatarConfig);
+        setPlayerDisplayAvatarId(avatarId);
+        setPlayerDisplayAvatarSprite(selectedAvatarConfig.spritesheetPath);
+        setIsAvatarSelectorOpen(false);
+        console.log('Player avatar display changed to:', selectedAvatarConfig.name);
+      } catch (error) {
+        console.error('Failed to set player avatar display:', error);
+      }
+    } else {
+      console.error('Could not find avatar config for id:', avatarId);
+    }
+  };
+
+  const handleAvatarFilterClick = (categoryKey) => {
+    setAvatarFilter(categoryKey);
+  };
 
   return (
     <>
-      {/* The original index.html had a <link rel="stylesheet" href="styles.css">.
-          In React, CSS is usually imported into the JavaScript file (see comment at the top)
-          or handled via CSS-in-JS libraries or CSS Modules.
-      */}
       <div id="game-container">
         <canvas ref={canvasRef} id="gameCanvas"></canvas>
 
         <div
           id="ui-overlay"
           onClick={handleGameInteraction}
-          // Ensure pointerEvents: 'auto' is on the ui-overlay itself if it's meant to catch clicks
-          // The style was removed in a previous step, let's re-evaluate if it's needed here
-          // or rely on children having pointerEvents: 'auto' and this one being a passthrough
-          // For now, assuming direct clicks are desired on the overlay.
           style={{ pointerEvents: 'auto' }}
         >
           <div id="top-bar">
             <div id="treats-counter">
-              {/* Ensure asset paths are correct for your React setup */}
               <img src="/assets/fish-treat.png" alt="Fish Treat" className="treat-icon" />
               <span id="treats-count">{treats}</span>
             </div>
 
-            <button id="avatar-button" className="ui-button">
-              <img src="/assets/cat-icon.png" alt="Change Avatar" className="avatar-icon" />
+            <button id="avatar-button" className="ui-button" onClick={toggleAvatarSelector}>
+              <img src={playerDisplayAvatarSprite} alt="Change Avatar" className="avatar-icon" />
               <span>Change Avatar</span>
             </button>
 
             <button
               id="hat-closet-button"
               className="ui-button"
-              onClick={toggleHatInventory} // Open hat inventory
+              onClick={toggleHatInventory}
             >
               <img src="/assets/hat-icon.png" alt="Hat Closet" className="hat-icon" />
               <span>Hat Closet</span>
@@ -696,7 +481,6 @@ function TitleScreen() {
             ></div>
           </div>
 
-          {/* Debug Controls from original HTML */}
           <div id="debug-controls">
             <button
               id="add-treats"
@@ -707,27 +491,63 @@ function TitleScreen() {
             </button>
           </div>
 
-          <button id="play-button" className="ui-button">
+          <button id="play-button" className="ui-button" onClick={handlePlayButtonClick}>
             <img src="/assets/play-icon.png" alt="Play" className="play-icon" />
             <span>Play</span>
           </button>
         </div>
 
-        <div id="avatar-selector" className="hidden">
+        <div id="avatar-selector" className={isAvatarSelectorOpen ? '' : 'hidden'}>
           <div className="inventory-header">
             <h2>Choose Your Cat</h2>
-            <button id="close-avatar-selector">×</button>
+            <button id="close-avatar-selector" onClick={toggleAvatarSelector}>×</button>
           </div>
-          <div id="avatars-grid"></div>
+          <div className="rarity-filters">
+            {isAvatarSelectorOpen && Object.entries(avatarCategories).map(([categoryKey, categoryValue]) => (
+              <button
+                key={categoryKey}
+                className={`rarity-filter ${avatarFilter === categoryKey ? 'active' : ''}`}
+                onClick={() => handleAvatarFilterClick(categoryKey)}
+              >
+                {categoryValue.name}
+              </button>
+            ))}
+          </div>
+          <div id="avatars-grid">
+            {isAvatarSelectorOpen && avatarsToDisplayInSelector.map(avatar => {
+              const avatarType = getAvatarType(avatar.id);
+              return (
+                <div
+                  key={avatar.id}
+                  className={`avatar-item ${playerDisplayAvatarId === avatar.id ? 'selected' : ''} ${avatarType}`}
+                  onClick={() => handleSelectAvatar(avatar.id)}
+                  title={`Select ${avatar.name}`}
+                >
+                  <img
+                    src={avatar.spritesheetPath}
+                    alt={avatar.name}
+                    style={{ maxWidth: '80px', maxHeight: '80px', border: playerDisplayAvatarId === avatar.id ? '2px solid gold' : '2px solid transparent' }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
+                  />
+                  <span style={{ display: 'none', color: 'white' }}>{avatar.name} (Preview N/A)</span>
+                  <div className="avatar-item-name">{avatar.name}</div>
+                </div>
+              );
+            })}
+            {isAvatarSelectorOpen && avatarsToDisplayInSelector.length === 0 && (
+              <p style={{ color: 'white', textAlign: 'center', padding: '20px' }}>
+                No avatars found for filter: {avatarCategories[avatarFilter]?.name || avatarFilter}
+              </p>
+            )}
+          </div>
         </div>
 
         <div id="hat-inventory" className={isHatInventoryOpen ? '' : 'hidden'}>
           <div className="inventory-header">
             <h2>Hat Collection</h2>
-            <button id="close-inventory" onClick={toggleHatInventory}>×</button> {/* Close hat inventory */}
+            <button id="close-inventory" onClick={toggleHatInventory}>×</button>
           </div>
           <div className="rarity-filters">
-            {/* Update buttons to use hatInventoryFilter state and click handler */}
             <button
               className={`rarity-filter ${hatInventoryFilter === 'all' ? 'active' : ''}`}
               data-rarity="all"
@@ -781,7 +601,7 @@ function TitleScreen() {
                       >
                         <img src={hat.imagePath} alt={hat.name} />
                         <div className="hat-item-name">{hat.name}</div>
-                        {!isUnlocked && <div className="lock-icon">🔒</div>} {/* Optional: Add a lock icon styled via CSS */}
+                        {!isUnlocked && <div className="lock-icon">🔒</div>}
                       </div>
                     );
                   })
@@ -789,7 +609,7 @@ function TitleScreen() {
                   <p>
                     {hatInventoryFilter === 'all' && unlockedHats.size === 0
                       ? "No hats unlocked yet. Keep feeding your cat!"
-                      : `No ${hatInventoryFilter !== 'all' ? hatInventoryFilter : ''} hats currently available matching this filter.`}
+                      : `No ${hatInventoryFilter !== 'all' ? hatInventoryFilter : ''} hats currently available matching this filter.${unlockedHats.size > 0 && hatsToDisplayInInventory.length === 0 ? ' (Though you have unlocked hats of other rarities!) ' : ''}`}
                   </p>
                 )}
               </>
@@ -797,12 +617,10 @@ function TitleScreen() {
           </div>
         </div>
 
-        {/* Hat Reveal Overlay - Conditionally Rendered */}
         {isRevealOverlayVisible && hatForReveal && (
           <div className="hat-reveal-overlay visible">
             <div
               className="hat-reveal-display"
-            // The CSS for .hat-reveal-display handles the reveal animation (scale and opacity transition).
             >
               <img src={hatForReveal.imagePath} alt={hatForReveal.name} />
               <div className={`hat-name ${hatForReveal.rarity.toLowerCase()}`}>
@@ -812,13 +630,6 @@ function TitleScreen() {
           </div>
         )}
       </div>
-      {/*
-      The script tags from the original HTML (js/utils.js, js/config.js, etc.)
-      are not included here directly. Their functionality needs to be
-      re-implemented or adapted within the React component structure (e.g., using
-      useEffect for side effects, useState for state management, and breaking down
-      logic into smaller components or custom hooks).
-    */}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './App.css';
 import TitleScreen from './TitleScreen';
+import Metagame from './Metagame';
 import GameDiscovery from './GameDiscovery';
 import { useSwipeable } from 'react-swipeable';
 

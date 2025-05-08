@@ -86,6 +86,12 @@ body {
     pointer-events: auto;
 }
 
+.treat-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
 .ui-button {
     background: rgba(255, 255, 255, 0.9);
     border: none;
@@ -451,18 +457,49 @@ body {
 }
 
 .avatar-item img {
-    width: 70%; /* Adjust size as needed */
-    height: 70%;
+    width: 80%;
+    height: 80%;
     object-fit: contain;
-    margin-bottom: 8px; /* Space between image and name */
+    pointer-events: none; /* Make sure clicks go to the avatar-item div */
 }
 
-.avatar-item .name {
-    font-size: 12px; /* Adjust size as needed */
-    color: #333;
+/* Corrected selector */
+.avatar-item .avatar-item-name {
+    font-size: 14px; /* Original was 14px, current was 0.8em. Let's try 14px */
+    font-weight: bold;
     text-align: center;
+    padding: 4px 8px; /* Original had 4px 12px, let's adjust for possibly smaller items */
+    border-radius: 8px;
+    white-space: nowrap;
+    color: #666;
+    pointer-events: none; /* Make sure clicks go to the avatar-item div */
+    width: 100%; /* Ensure it uses available width */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+/* Added from original CSS for :active state */
+.avatar-item:active {
+    transform: scale(0.95) !important;
+    background: #ffe4e6 !important;
+    border-color: #ff9a9e !important;
+}
+
+/* Added from original CSS for category-specific name backgrounds */
+.avatar-item.cats .avatar-item-name { /* Corrected selector */
+    background: linear-gradient(45deg, #ff9a9e, #fad0c4);
+    color: white;
+}
+
+.avatar-item.animals .avatar-item-name { /* Corrected selector */
+    background: linear-gradient(45deg, #84fab0, #8fd3f4);
+    color: white;
+}
+
+.avatar-item.food .avatar-item-name { /* Corrected selector */
+    background: linear-gradient(45deg, #ffc3a0, #ffafbd);
+    color: white;
+}
 
 #play-button {
     position: absolute;

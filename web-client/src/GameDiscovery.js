@@ -5,11 +5,11 @@ import React, { useState, useEffect } from 'react';
 
 // Function to retrieve avatarId from localStorage
 function getAvatarIdFromLocalStorage() {
-    const playerDataString = localStorage.getItem('playerData');
+  const playerDataString = localStorage.getItem('metagameGameState');
     if (playerDataString) {
         try {
             const playerData = JSON.parse(playerDataString);
-            return playerData.avatarId;
+            return playerData.playerDisplayAvatarId;
         } catch (error) {
             console.error("Error parsing playerData from localStorage:", error);
             return null; // Or a default avatarId
