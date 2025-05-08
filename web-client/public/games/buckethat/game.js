@@ -14,15 +14,26 @@ let score = 0;
 let timeLeft = 30; // seconds, from spec
 let gameIsOver = false;
 
+// Player image
+const playerImage = new Image();
+playerImage.src = 'sprites/axolotl.png'; // Make sure this path is correct
+let playerImageLoaded = false;
+playerImage.onload = () => {
+    playerImageLoaded = true;
+    // Optional: Adjust player dimensions based on image aspect ratio if needed
+    // For now, we'll use fixed dimensions and adjust if it looks off.
+    // player.width = playerImage.width * 0.5; // Example scaling
+    // player.height = playerImage.height * 0.5; // Example scaling
+};
+
 // Player state
 const player = {
     x: GAME_WIDTH / 2,
     y: GAME_HEIGHT - 100, // Positioned towards the bottom
-    width: 50, // As per spec example
-    height: 100, // As per spec example
+    width: 80, // Adjusted for image
+    height: 80, // Adjusted for image
     bucketWidth: 120, // 30% of screen width
     bucketHeight: 30, // Arbitrary, can adjust
-    color: 'blue',
     leanSpeed: 400, // pixels per second, adjust for smooth animation
     isLeaningLeft: false,
     isLeaningRight: false,
@@ -221,15 +232,25 @@ function draw() {
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
     // Draw player
-    // Main body
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x - player.width / 2, player.y - player.height, player.width, player.height);
+    if (playerImageLoaded) {
+        // Draw the image centered horizontally, with its bottom at player.y
+        const drawX = player.x - player.width / 2;
+        const drawY = player.y - player.height;
+        ctx.drawImage(playerImage, drawX, drawY, player.width, player.height);
+    } else {
+        // Fallback drawing if image hasn't loaded (optional, or handle error)
+        // For now, let's draw a placeholder rectangle if image fails to load,
+        // or just skip drawing player if that's preferred.
+        ctx.fillStyle = 'grey'; // Placeholder color
+        ctx.fillRect(player.x - player.width / 2, player.y - player.height, player.width, player.height);
+    }
 
     // Bucket (hitbox on top)
     // The bucket is centered on the player's x position
     const bucketX = player.x - player.bucketWidth / 2;
-    const bucketY = player.y - player.height - player.bucketHeight; // Bucket is on top of the main body
-    ctx.fillStyle = player.color; // Same color for now, can change
+    // Position bucket directly on top of the player image
+    const bucketY = player.y - player.height - player.bucketHeight;
+    ctx.fillStyle = 'grey'; // Changed bucket color
     ctx.fillRect(bucketX, bucketY, player.bucketWidth, player.bucketHeight);
 
     // Draw falling objects
