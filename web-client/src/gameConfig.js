@@ -102,7 +102,7 @@ export const allAvatars = [
   {
     id: 'tabby',
     name: 'Tabby Cat',
-    spritesheetPath: '/assets/avatars/tabby.png',
+    spritesheetPath: 'assets/avatars/tabby.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 }, // Placeholder eating/coughing rows
@@ -111,7 +111,7 @@ export const allAvatars = [
   {
     id: 'axolotl',
     name: 'Axolotl',
-    spritesheetPath: '/assets/avatars/axolotl.png',
+    spritesheetPath: 'assets/avatars/axolotl.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },
@@ -119,7 +119,7 @@ export const allAvatars = [
   {
     id: 'duck',
     name: 'Duck',
-    spritesheetPath: '/assets/avatars/duck.png',
+    spritesheetPath: 'assets/avatars/duck.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },
@@ -127,7 +127,7 @@ export const allAvatars = [
   {
     id: 'dragon',
     name: 'Dragon',
-    spritesheetPath: '/assets/avatars/dragon.png',
+    spritesheetPath: 'assets/avatars/dragon.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },
@@ -135,7 +135,7 @@ export const allAvatars = [
   {
     id: 'pug',
     name: 'Pug',
-    spritesheetPath: '/assets/avatars/pug.png',
+    spritesheetPath: 'assets/avatars/pug.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },
@@ -143,7 +143,7 @@ export const allAvatars = [
   {
     id: 'bread',
     name: 'Bread Cat',
-    spritesheetPath: '/assets/avatars/bread.png',
+    spritesheetPath: 'assets/avatars/bread.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },
@@ -151,7 +151,7 @@ export const allAvatars = [
   {
     id: 'onion',
     name: 'Onion Cat',
-    spritesheetPath: '/assets/avatars/onion.png',
+    spritesheetPath: 'assets/avatars/onion.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },
@@ -159,7 +159,7 @@ export const allAvatars = [
   {
     id: 'giraffe',
     name: 'Giraffe',
-    spritesheetPath: '/assets/avatars/giraffe.png',
+    spritesheetPath: 'assets/avatars/giraffe.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },
@@ -167,7 +167,7 @@ export const allAvatars = [
   {
     id: 'bear',
     name: 'Bear',
-    spritesheetPath: '/assets/avatars/bear.png',
+    spritesheetPath: 'assets/avatars/bear.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },
@@ -175,7 +175,7 @@ export const allAvatars = [
   {
     id: 'panda',
     name: 'Panda',
-    spritesheetPath: '/assets/avatars/panda.png',
+    spritesheetPath: 'assets/avatars/panda.png',
     frameWidth: 128,
     frameHeight: 128,
     animationRows: { idle: 0, eating: 0, coughing: 1 },

@@ -51,25 +51,30 @@ class CatDrawer {
   }
 
   // Method to set the small player avatar display
-  async setPlayerAvatarDisplay(playerAvatarConfig) {
-    if (!playerAvatarConfig) {
+  async setPlayerAvatarDisplay({
+    spritesheetPath,
+    name,
+    frameWidth,
+    frameHeight,
+  }) {
+    if (!spritesheetPath) {
       this.playerAvatarDisplay = null;
       console.log("CatDrawer: Player avatar display cleared.");
       return;
     }
-    console.log("CatDrawer: setting player avatar display to", playerAvatarConfig.name);
+    console.log("CatDrawer: setting player avatar display to", name);
     try {
-      const image = await loadImage(playerAvatarConfig.spritesheetPath);
+      const image = await loadImage(spritesheetPath);
       this.playerAvatarDisplay = {
         image: image,
-        name: playerAvatarConfig.name,
-        frameWidth: playerAvatarConfig.frameWidth, // Used for consistent scaling of avatar display
-        frameHeight: playerAvatarConfig.frameHeight, // Used for consistent scaling of avatar display
+        name: name,
+        frameWidth: frameWidth, // Used for consistent scaling of avatar display
+        frameHeight: frameHeight, // Used for consistent scaling of avatar display
         // Store other necessary details if needed, e.g., specific offsets for this display
       };
-      console.log("CatDrawer: Player avatar display image loaded for", playerAvatarConfig.name);
+      console.log("CatDrawer: Player avatar display image loaded for", name);
     } catch (error) {
-      console.error(`Failed to load player avatar display image: ${playerAvatarConfig.spritesheetPath}`, error);
+      console.error(`Failed to load player avatar display image: ${spritesheetPath}`, error);
       this.playerAvatarDisplay = null; // Clear if loading failed
     }
   }
@@ -129,10 +134,14 @@ class CatDrawer {
       try {
         this.ctx.drawImage(
           this.spritesheet,
-          sourceX, sourceY,
-          this.frameWidth, this.frameHeight,
-          -this.frameWidth / 2, -this.frameHeight / 2,
-          this.frameWidth, this.frameHeight
+          sourceX,
+          sourceY,
+          this.frameWidth,
+          this.frameHeight,
+          -this.frameWidth / 2 - 140,
+          -this.frameHeight / 2 - 100,
+          this.frameWidth * 2,
+          this.frameHeight * 2
         );
       } catch (error) {
         console.error('Error drawing main cat:', error);

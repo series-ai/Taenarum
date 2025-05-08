@@ -426,7 +426,12 @@ function TitleScreen() {
     const selectedAvatarConfig = getAvatarConfig(avatarId);
     if (selectedAvatarConfig && catDrawerRef.current) {
       try {
-        await catDrawerRef.current.setPlayerAvatarDisplay(selectedAvatarConfig);
+        await catDrawerRef.current.setPlayerAvatarDisplay({
+          spritesheetPath: selectedAvatarConfig.spritesheetPath,
+          name: selectedAvatarConfig.name,
+          frameWidth: selectedAvatarConfig.frameWidth,
+          frameHeight: selectedAvatarConfig.frameHeight,
+        });
         setPlayerDisplayAvatarId(avatarId);
         setPlayerDisplayAvatarSprite(selectedAvatarConfig.spritesheetPath);
         setIsAvatarSelectorOpen(false);
@@ -490,11 +495,6 @@ function TitleScreen() {
               +10 Treats
             </button>
           </div>
-
-          <button id="play-button" className="ui-button" onClick={handlePlayButtonClick}>
-            <img src="/assets/play-icon.png" alt="Play" className="play-icon" />
-            <span>Play</span>
-          </button>
         </div>
 
         <div id="avatar-selector" className={isAvatarSelectorOpen ? '' : 'hidden'}>
