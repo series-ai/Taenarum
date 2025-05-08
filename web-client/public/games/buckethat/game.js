@@ -376,6 +376,14 @@ function showEndScreen() {
     }
     canvas.style.display = 'none';
     endScreen.style.display = 'block';
+
+    // Send message to parent window
+    const message = { type: 'gameOver', game: 'buckethat', fishScore: fishEarned };
+    // Attempt to get parent origin dynamically, fallback to '*' (less secure, replace with actual origin in production)
+    const parentOrigin = window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0 ? window.location.ancestorOrigins[0] : '*';
+    
+    console.log("Game sending message:", message, "to origin:", parentOrigin);
+    window.parent.postMessage(message, parentOrigin);
 }
 
 function restartGame() {
