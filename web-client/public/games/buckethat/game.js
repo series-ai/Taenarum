@@ -3,6 +3,7 @@ const ctx = canvas.getContext('2d');
 const endScreen = document.getElementById('endScreen');
 const finalScoreDisplay = document.getElementById('finalScore');
 const restartButton = document.getElementById('restartButton');
+const fishEarnedDisplay = document.getElementById('fishEarned'); // Added for fish display
 
 const GAME_WIDTH = 400;
 const GAME_HEIGHT = 600;
@@ -369,6 +370,10 @@ function handlePointerUp(event) {
 function showEndScreen() {
     gameIsOver = true;
     finalScoreDisplay.textContent = score;
+    const fishEarned = Math.floor(score / 20);
+    if (fishEarnedDisplay) { // Check if the element exists
+        fishEarnedDisplay.textContent = fishEarned;
+    }
     canvas.style.display = 'none';
     endScreen.style.display = 'block';
 }
@@ -394,6 +399,10 @@ function restartGame() {
     // spawnInterval = 2000; // Reset to initial if needed
     // timeToNextSpawnRateIncrease = spawnRateIncreaseInterval;
 
+    // Reset fish earned display
+    if (fishEarnedDisplay) { // Check if the element exists
+        fishEarnedDisplay.textContent = '0'; // Or reset as appropriate
+    }
 
     // Hide end screen, show canvas
     endScreen.style.display = 'none';
