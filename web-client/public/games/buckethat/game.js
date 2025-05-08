@@ -9,6 +9,12 @@ const GAME_HEIGHT = 600;
 const TARGET_FPS = 30;
 const MS_PER_FRAME = 1000 / TARGET_FPS;
 
+// Function to get URL parameters
+function getQueryParam(param) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(param);
+}
+
 // Game state variables (will be expanded)
 let score = 0;
 let timeLeft = 30; // seconds, from spec
@@ -16,7 +22,8 @@ let gameIsOver = false;
 
 // Player image
 const playerImage = new Image();
-playerImage.src = 'sprites/axolotl.png'; // Make sure this path is correct
+const avatarId = getQueryParam('avatarId') || 'axolotl'; // Default to axolotl if no param
+playerImage.src = `sprites/${avatarId}.png`; // Make sure this path is correct
 let playerImageLoaded = false;
 playerImage.onload = () => {
     playerImageLoaded = true;
