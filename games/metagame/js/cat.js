@@ -32,6 +32,10 @@ class Cat {
         this.totalFrames = 3; // 3 frames per animation
         this.animationRow = 2; // Third row (index 2)
         
+        // Avatar properties
+        this.avatar = null;
+        this.currentHat = null;
+        
         // Load spritesheet
         this.loadSprites();
     }
@@ -131,6 +135,39 @@ class Cat {
         }
         
         this.ctx.restore();
+
+        // Draw avatar if exists - now positioned independently
+        if (this.avatar?.sprite?.image) {
+            this.ctx.save();
+            
+            // Position avatar in fixed location on screen - using frameWidth for consistent square scaling
+            const baseSize = this.avatar.sprite.frameWidth;
+            const avatarScale = (this.canvas.width / 1500) * 2.4; // Use single dimension for square scaling
+            const padding = 20; // Padding from screen edge
+            const avatarX = padding + (baseSize * avatarScale / 2) + 20; // Added 20px to the right
+            const avatarY = this.canvas.height - padding - (baseSize * avatarScale / 2) - 150; // Moved up 150px
+            
+            this.ctx.translate(avatarX, avatarY);
+            this.ctx.scale(avatarScale, avatarScale);
+            
+            // Draw avatar image
+            const sprite = this.avatar.sprite;
+            this.ctx.drawImage(
+                sprite.image,
+                -baseSize / 2,
+                -baseSize / 2,
+                baseSize,
+                baseSize
+            );
+            
+            // Draw name tag
+            this.ctx.font = '24px Arial';
+            this.ctx.fillStyle = '#666';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(this.avatar.displayName, 0, sprite.frameHeight / 2 + 30);
+            
+            this.ctx.restore();
+        }
     }
     
     startEating() {
@@ -220,6 +257,29 @@ class Cat {
         this.currentFrame = 0;
         // Use row 0 if has treats, row 2 if no treats
         this.animationRow = hasTreats ? 0 : 2;
+    }
+
+    async setAvatar(avatarId) {
+        const avatarConfig = GameConfig.avatars.types.find(a => a.id === avatarId);
+        if (!avatarConfig) return;
+
+        this.avatar = {
+            id: avatarConfig.id,
+            displayName: avatarConfig.displayName,
+            sprite: {
+                image: await this.loadImage(avatarConfig.sprite.file),
+                ...avatarConfig.sprite
+            }
+        };
+    }
+
+    async loadImage(filename) {
+        try {
+            return await GameUtils.loadImage(`assets/avatars/${filename}`);
+        } catch (error) {
+            console.error(`Failed to load image: ${filename}`, error);
+            return null;
+        }
     }
 }
 

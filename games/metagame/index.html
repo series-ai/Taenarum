@@ -45,8 +45,14 @@
         
         <div id="avatar-selector" class="hidden">
             <div class="inventory-header">
-                <h2>Choose Your Cat</h2>
-                <button id="close-avatar-selector">×</button>
+                <h2>Choose Your Avatar</h2>
+                <button id="close-avatar-selector" class="close-button">×</button>
+            </div>
+            <div class="rarity-filters">
+                <button class="rarity-filter active" data-type="all">All</button>
+                <button class="rarity-filter" data-type="cats">Cats</button>
+                <button class="rarity-filter" data-type="animals">Animals</button>
+                <button class="rarity-filter" data-type="food">Food</button>
             </div>
             <div id="avatars-grid"></div>
         </div>

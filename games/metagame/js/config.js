@@ -1,34 +1,136 @@
 // Game configuration
 
 const GameConfig = {
-    // Avatar definitions
-    avatars: [
-        {
-            id: 'tabby',
-            name: 'Tabby Cat',
-            file: 'tabby.png'
-        },
-        {
-            id: 'siamese',
-            name: 'Siamese Cat',
-            file: 'siamese.png'
-        },
-        {
-            id: 'tuxedo',
-            name: 'Tuxedo Cat',
-            file: 'tuxedo.png'
-        },
-        {
-            id: 'orange',
-            name: 'Orange Cat',
-            file: 'orange.png'
-        },
-        {
-            id: 'calico',
-            name: 'Calico Cat',
-            file: 'calico.png'
+    // Avatar configuration
+    avatars: {
+        // Available avatars
+        types: [
+            {
+                id: 'tabby',
+                displayName: 'Tabby Cat',
+                sprite: {
+                    file: 'avatarvector/tabby.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'axolotl',
+                displayName: 'Axolotl',
+                sprite: {
+                    file: 'avatarvector/axolotl.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'duck',
+                displayName: 'Duck',
+                sprite: {
+                    file: 'avatarvector/duck.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'dragon',
+                displayName: 'Dragon',
+                sprite: {
+                    file: 'avatarvector/dragon.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'pug',
+                displayName: 'Pug',
+                sprite: {
+                    file: 'avatarvector/pug.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'bread',
+                displayName: 'Bread Cat',
+                sprite: {
+                    file: 'avatarvector/bread.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'onion',
+                displayName: 'Onion Cat',
+                sprite: {
+                    file: 'avatarvector/onion.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'giraffe',
+                displayName: 'Giraffe',
+                sprite: {
+                    file: 'avatarvector/giraffe.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'bear',
+                displayName: 'Bear',
+                sprite: {
+                    file: 'avatarvector/bear.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            },
+            {
+                id: 'panda',
+                displayName: 'Panda',
+                sprite: {
+                    file: 'avatarvector/panda.png',
+                    frameWidth: 128,
+                    frameHeight: 128,
+                    animations: {
+                        idle: { row: 0, frames: 1 }
+                    }
+                }
+            }
+        ],
+        // Default animation timings
+        animationSpeed: {
+            idle: 150      // ms per frame
         }
-    ],
+    },
 
     // Hat definitions with file paths, display names, and rarities
     hats: [

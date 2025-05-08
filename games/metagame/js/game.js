@@ -43,9 +43,18 @@ class Game {
         document.getElementById('hat-closet-button').addEventListener('click', () => this.toggleInventory());
         document.getElementById('close-inventory').addEventListener('click', () => this.toggleInventory());
         
-        // Set up rarity filters
-        document.querySelectorAll('.rarity-filter').forEach(button => {
+        // Set up avatar selector UI
+        document.getElementById('avatar-button').addEventListener('click', () => this.toggleAvatarSelector());
+        document.getElementById('close-avatar-selector').addEventListener('click', () => this.toggleAvatarSelector());
+        
+        // Set up rarity filters for hats
+        document.querySelectorAll('#hat-inventory .rarity-filter').forEach(button => {
             button.addEventListener('click', (e) => this.filterHats(e.target.dataset.rarity));
+        });
+
+        // Set up type filters for avatars
+        document.querySelectorAll('#avatar-selector .rarity-filter').forEach(button => {
+            button.addEventListener('click', (e) => this.filterAvatars(e.target.dataset.type));
         });
         
         // Set up debug controls
@@ -55,10 +64,10 @@ class Game {
             this.saveGameState();
         });
         
-        // Initialize hat collection
-        console.log('Initializing hat collection...');
+        // Initialize collections
+        console.log('Initializing collections...');
         await this.hatCollection.initialize();
-        console.log('Hat collection initialized');
+        console.log('Collections initialized');
         
         // Load saved game state
         this.loadGameState();
@@ -183,14 +192,25 @@ class Game {
         hatDisplay.appendChild(hatImage);
         hatDisplay.appendChild(hatName);
         
+        // Add click handler to equip hat and hide display
+        hatDisplay.addEventListener('click', () => {
+            this.cat.wearHat(hat);
+            hatDisplay.classList.add('fade-out');
+            setTimeout(() => hatDisplay.remove(), 500);
+        });
+        
         document.getElementById('game-container').appendChild(hatDisplay);
         
-        // Remove display after 5 seconds
+        // Auto-hide after 5 seconds if not clicked
         setTimeout(() => {
-            hatDisplay.classList.add('fade-out');
-            setTimeout(() => {
-                hatDisplay.remove();
-            }, 500); // 500ms for fade out animation
+            if (document.body.contains(hatDisplay)) {
+                hatDisplay.classList.add('fade-out');
+                setTimeout(() => {
+                    if (document.body.contains(hatDisplay)) {
+                        hatDisplay.remove();
+                    }
+                }, 500);
+            }
         }, 5000);
         
         this.currentHairball = null;
@@ -215,12 +235,19 @@ class Game {
     updateInventory() {
         this.hatsGrid.innerHTML = '';
         
-        const currentFilter = document.querySelector('.rarity-filter.active').dataset.rarity;
+        const currentFilter = document.querySelector('#hat-inventory .rarity-filter.active').dataset.rarity;
         const hats = this.hatCollection.getHatsByRarity(currentFilter);
         
         hats.forEach(hat => {
             const hatElement = document.createElement('div');
-            hatElement.className = `hat-item ${hat.isUnlocked ? '' : 'locked'}`;
+            const classes = ['hat-item'];
+            if (!hat.isUnlocked) {
+                classes.push('locked');
+            }
+            if (this.cat.currentHat && this.cat.currentHat.id === hat.id) {
+                classes.push('selected');
+            }
+            hatElement.className = classes.join(' ');
             
             // Create an image for the hat
             const img = document.createElement('img');
@@ -231,7 +258,13 @@ class Game {
             
             if (hat.isUnlocked) {
                 hatElement.addEventListener('click', () => {
-                    this.cat.wearHat(hat);
+                    // If clicking the currently equipped hat, unequip it
+                    if (this.cat.currentHat && this.cat.currentHat.id === hat.id) {
+                        this.cat.wearHat(null);
+                    } else {
+                        this.cat.wearHat(hat);
+                    }
+                    this.updateInventory(); // Refresh to update selection
                 });
             }
             
@@ -240,10 +273,89 @@ class Game {
     }
     
     filterHats(rarity) {
-        document.querySelectorAll('.rarity-filter').forEach(button => {
+        // Update active filter button
+        document.querySelectorAll('#hat-inventory .rarity-filter').forEach(button => {
             button.classList.toggle('active', button.dataset.rarity === rarity);
         });
         this.updateInventory();
+    }
+    
+    toggleAvatarSelector() {
+        const selector = document.getElementById('avatar-selector');
+        selector.classList.toggle('hidden');
+        if (!selector.classList.contains('hidden')) {
+            this.updateAvatarSelector();
+        }
+    }
+
+    updateAvatarSelector() {
+        const grid = document.getElementById('avatars-grid');
+        grid.innerHTML = '';
+        
+        const currentFilter = document.querySelector('#avatar-selector .rarity-filter.active').dataset.type;
+        const avatars = this.filterAvatarsByType(currentFilter);
+        
+        avatars.forEach(avatar => {
+            const avatarElement = document.createElement('div');
+            const classes = ['avatar-item', this.getAvatarType(avatar.id)];
+            if (this.cat.avatar?.id === avatar.id) {
+                classes.push('selected');
+            }
+            avatarElement.className = classes.join(' ');
+            
+            const img = document.createElement('img');
+            img.src = `assets/avatars/${avatar.sprite.file}`;
+            img.alt = avatar.displayName;
+            
+            const name = document.createElement('div');
+            name.className = 'name';
+            name.textContent = avatar.displayName;
+            
+            avatarElement.appendChild(img);
+            avatarElement.appendChild(name);
+            
+            avatarElement.addEventListener('click', async () => {
+                // If clicking the current avatar, do nothing
+                if (this.cat.avatar?.id !== avatar.id) {
+                    // Update selection immediately
+                    document.querySelectorAll('.avatar-item').forEach(item => item.classList.remove('selected'));
+                    avatarElement.classList.add('selected');
+                    
+                    // Then set the avatar
+                    await this.cat.setAvatar(avatar.id);
+                }
+            });
+            
+            grid.appendChild(avatarElement);
+        });
+    }
+
+    filterAvatars(type) {
+        // Update active filter button
+        document.querySelectorAll('#avatar-selector .rarity-filter').forEach(button => {
+            button.classList.toggle('active', button.dataset.type === type);
+        });
+        
+        this.updateAvatarSelector();
+    }
+
+    filterAvatarsByType(type) {
+        const avatars = GameConfig.avatars.types;
+        if (type === 'all') return avatars;
+        
+        return avatars.filter(avatar => this.getAvatarType(avatar.id) === type);
+    }
+
+    getAvatarType(id) {
+        // Categorize avatars
+        const cats = ['tabby', 'bread', 'onion'];
+        const animals = ['axolotl', 'duck', 'dragon', 'pug', 'giraffe', 'bear', 'panda'];
+        const food = ['bread', 'onion'];
+        
+        if (cats.includes(id)) return 'cats';
+        if (animals.includes(id)) return 'animals';
+        if (food.includes(id)) return 'food';
+        return 'other';
     }
     
     saveGameState() {

@@ -2,6 +2,9 @@ class Player {
     constructor() {
         this.avatar = null;
         this.hat = null;
+        this.frameTime = 0;
+        this.currentFrame = 0;
+        this.currentAnimation = 'idle';
         this.loadPlayerData();
     }
 
@@ -11,13 +14,17 @@ class Player {
         const data = saved ? JSON.parse(saved) : GameConfig.defaultPlayer;
 
         // Load avatar
-        const avatarConfig = GameConfig.avatars.find(a => a.id === data.avatarId);
+        const avatarConfig = GameConfig.avatars.types.find(a => a.id === data.avatarId);
         if (avatarConfig) {
             this.avatar = {
                 id: avatarConfig.id,
-                name: avatarConfig.name,
-                image: await this.loadImage(avatarConfig.file)
+                displayName: avatarConfig.displayName,
+                sprite: {
+                    image: await this.loadImage(avatarConfig.sprite.file),
+                    ...avatarConfig.sprite
+                }
             };
+            this.setAnimation('idle');
         }
 
         // Load hat if one is equipped
@@ -28,7 +35,7 @@ class Player {
                     id: hatConfig.id,
                     name: hatConfig.name,
                     rarity: hatConfig.rarity,
-                    image: await this.loadImage(hatConfig.file)
+                    image: await this.loadImage(`hats/${hatConfig.file}`)
                 };
             }
         }
@@ -44,65 +51,72 @@ class Player {
     }
 
     async setAvatar(avatarId) {
-        const avatarConfig = GameConfig.avatars.find(a => a.id === avatarId);
+        const avatarConfig = GameConfig.avatars.types.find(a => a.id === avatarId);
         if (!avatarConfig) return;
 
         this.avatar = {
             id: avatarConfig.id,
-            name: avatarConfig.name,
-            image: await this.loadImage(avatarConfig.file)
+            displayName: avatarConfig.displayName,
+            sprite: {
+                image: await this.loadImage(avatarConfig.sprite.file),
+                ...avatarConfig.sprite
+            }
         };
-
+        this.setAnimation('idle');
         this.savePlayerData();
     }
 
-    async setHat(hatId) {
-        if (!hatId) {
-            this.hat = null;
-        } else {
-            const hatConfig = GameConfig.hats.find(h => h.id === hatId);
-            if (!hatConfig) return;
+    setAnimation(name) {
+        if (!this.avatar?.sprite?.animations[name]) return;
+        
+        this.currentAnimation = name;
+        this.currentFrame = 0;
+        this.frameTime = 0;
+    }
 
-            this.hat = {
-                id: hatConfig.id,
-                name: hatConfig.name,
-                rarity: hatConfig.rarity,
-                image: await this.loadImage(hatConfig.file)
-            };
+    update(deltaTime) {
+        if (!this.avatar?.sprite) return;
+
+        const animation = this.avatar.sprite.animations[this.currentAnimation];
+        if (!animation) return;
+
+        // Update frame based on animation speed
+        this.frameTime += deltaTime;
+        const frameDelay = GameConfig.avatars.animationSpeed[this.currentAnimation] || 150;
+        
+        if (this.frameTime >= frameDelay) {
+            this.frameTime = 0;
+            this.currentFrame = (this.currentFrame + 1) % animation.frames;
         }
-
-        this.savePlayerData();
-    }
-
-    savePlayerData() {
-        const data = {
-            avatarId: this.avatar?.id || GameConfig.defaultPlayer.avatarId,
-            hatId: this.hat?.id || null
-        };
-        localStorage.setItem('playerData', JSON.stringify(data));
     }
 
     draw(ctx, x, y, scale = 1) {
-        if (!this.avatar?.image) return;
+        if (!this.avatar?.sprite?.image) return;
+
+        const sprite = this.avatar.sprite;
+        const animation = sprite.animations[this.currentAnimation];
+        if (!animation) return;
 
         ctx.save();
         ctx.translate(x, y);
         ctx.scale(scale, scale);
 
-        // Draw avatar
-        const width = this.avatar.image.width;
-        const height = this.avatar.image.height;
+        // Draw current frame of animation
         ctx.drawImage(
-            this.avatar.image,
-            -width / 2,
-            -height / 2,
-            width,
-            height
+            sprite.image,
+            this.currentFrame * sprite.frameWidth,
+            animation.row * sprite.frameHeight,
+            sprite.frameWidth,
+            sprite.frameHeight,
+            -sprite.frameWidth / 2,
+            -sprite.frameHeight / 2,
+            sprite.frameWidth,
+            sprite.frameHeight
         );
 
         // Draw hat if equipped
         if (this.hat?.image) {
-            const hatY = -height / 2 - this.hat.image.height / 4 + 85;
+            const hatY = -sprite.frameHeight / 2 - this.hat.image.height / 4 + 85;
             const hatX = 20;
             ctx.drawImage(
                 this.hat.image,
@@ -114,6 +128,14 @@ class Player {
         }
 
         ctx.restore();
+    }
+
+    savePlayerData() {
+        const data = {
+            avatarId: this.avatar?.id || GameConfig.defaultPlayer.avatarId,
+            hatId: this.hat?.id || null
+        };
+        localStorage.setItem('playerData', JSON.stringify(data));
     }
 }
 
