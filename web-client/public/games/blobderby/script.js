@@ -7,13 +7,16 @@ let pandaSpriteSheetLoaded = false;
 
 // ADDED: List of available spritesheet names
 const availableSpriteSheetNames = [
-    "tabby.png",
+    "axolotl.png",
+    "bear.png",
+    "bread.png",
     "dragon.png",
     "duck.png",
-    "bread.png",
+    "giraffe.png",
+    "onion.png",
     "panda.png",
-    "axolotl.png",
-    "pug.png"
+    "pug.png",
+    "tabby.png",
 ];
 // ADDED: To store loaded spritesheet Image objects
 const loadedSpriteSheets = {};
