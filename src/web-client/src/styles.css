@@ -202,10 +202,14 @@ body {
     background: #f8f8f8;
     border-radius: 10px;
     display: flex;
+    flex-direction: column; /* Arrange image and name vertically */
     align-items: center;
-    justify-content: center;
+    justify-content: center; /* Center content vertically */
     cursor: pointer;
     transition: transform 0.2s;
+    padding: 5px; /* Add some padding inside the item */
+    position: relative; /* For positioning the lock icon */
+    overflow: hidden; /* Prevent content from spilling out */
 }
 
 .hat-item:hover {
@@ -216,11 +220,44 @@ body {
     width: 80%;
     height: 80%;
     object-fit: contain;
+    margin-bottom: 5px; /* Space between image and name */
+}
+
+.hat-item .hat-item-name {
+    font-size: 0.8em; /* Adjust as needed */
+    text-align: center;
+    color: #333;
+    width: 100%; /* Ensure it uses the available width */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Add ellipsis for long names */
+    white-space: nowrap; /* Prevent wrapping to multiple lines, use with ellipsis */
+    /* If you prefer wrapping, use:
+    white-space: normal;
+    word-wrap: break-word;
+    */
 }
 
 .hat-item.locked {
     filter: grayscale(1);
     opacity: 0.5;
+    /* cursor: not-allowed; is handled by inline style in JS if needed or can be reinforced here */
+}
+
+.hat-item.locked .hat-item-name {
+  color: #888; /* Darker grey for locked item names */
+}
+
+.hat-item .lock-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 1.2em; /* Adjust size */
+  color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(255, 255, 255, 0.5); /* Slight background for visibility */
+  border-radius: 50%;
+  padding: 2px 4px;
+  line-height: 1; /* Ensure tight fit for the icon */
+  pointer-events: none; /* So it doesn't interfere with hat-item click */
 }
 
 /* Animation classes */

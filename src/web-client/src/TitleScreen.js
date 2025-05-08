@@ -5,22 +5,11 @@ This component is a migration of a vanilla JavaScript game. Many features from t
 `games/metagame/` directory still need to be fully implemented or integrated.
 
 --- GENERAL GAME LOGIC & STATE ---
-- TODO: [State Management] Implement full game state saving (treats, fullness, unlockedHats, currentAvatarId, equippedHatId) to localStorage.
-  (See original `game.js -> saveGameState`, `hatCollection.js -> saveUnlockedHats`, `player.js` if applicable).
-- TODO: [State Management] Implement full game state loading on component mount from localStorage to initialize React state.
 - TODO: [State Management] Consider React Context or a lightweight state manager (e.g., Zustand) for shared game state if props drilling becomes too complex.
 - TODO: [Config] Externalize game configurations (hat definitions, avatar definitions, rarity weights, initial player stats, animation settings, sound paths) 
   instead of hardcoding (see original `config.js`). This could be a separate JS/JSON file imported at the top.
 
 --- HAT SYSTEM (Original: hat.js, hatCollection.js, parts of game.js) ---
-- TODO: [Data] Create a proper `Hat` class or object structure/interface if complex properties are needed (see original `hat.js`).
-- TODO: [Data] Implement full `HatCollection` logic or an equivalent service/hook:
-    - Load all hat definitions from the externalized game configuration.
-    - Manage an `unlockedHats` Set or Map (persisted to localStorage).
-    - Implement `getRandomHat(rarity)` for hairball generation, using configured rarity weights.
-    - Implement `getHatsByRarity(filter)` for inventory display.
-- TODO: [Hairball] Replace mock hat in `triggerGenerateHairball` with a call to the new `hatCollection.getRandomHat()`.
-- TODO: [Hairball] Implement actual hat unlocking in `performOpenHairball` by updating the `unlockedHats` state/collection.
 - TODO: [UI - Hat Inventory Modal]
     - Manage visibility state (e.g., `isHatInventoryOpen`).
     - Connect "Hat Closet" button (`#hat-closet-button`) and inventory's "Close" button (`#close-inventory`) to toggle this visibility state.
@@ -74,6 +63,7 @@ This component is a migration of a vanilla JavaScript game. Many features from t
 */
 import React from 'react';
 import './styles.css'; // Import the newly added CSS file
+import { fullnessThreshold, mockHat, allHats, rarityWeights, loadImage } from './gameConfig'; // Import configurations and loadImage
 // It's likely you'll need to import the CSS from the metagame.
 // For example, you might copy `games/metagame/styles.css` to this directory
 // or a shared styles directory and then import it:
@@ -98,14 +88,14 @@ import './styles.css'; // Import the newly added CSS file
 // and then use the useEffect hook to perform drawing operations and set up event listeners.
 
 // Utility function to load an image (can be moved to a utils.js later)
-const loadImage = (src) => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = (err) => reject(err); // Pass error object
-    img.src = src;
-  });
-};
+// const loadImage = (src) => { // MOVED to gameConfig.js
+//   return new Promise((resolve, reject) => {
+//     const img = new Image();
+//     img.onload = () => resolve(img);
+//     img.onerror = (err) => reject(err); // Pass error object
+//     img.src = src;
+//   });
+// };
 
 // Simplified Background class for drawing (can be moved to its own file later)
 class BackgroundDrawer {
@@ -163,6 +153,9 @@ class CatDrawer {
     this.isClickAnimating = false;
     // this.blockingTaps = false; // Will be managed by React state if needed
     this.coughPauseTime = 0;
+
+    this.equippedHatData = null;
+    this.equippedHatImage = null;
 
     this.frameWidth = 287;
     this.frameHeight = 287;
@@ -251,7 +244,7 @@ class CatDrawer {
       console.error('Error drawing cat:', error);
     }
     this.ctx.restore();
-    // TODO: Hat drawing will be separate
+    this.drawHat(); // Draw hat after cat
   }
 
   handleResize() {
@@ -259,6 +252,10 @@ class CatDrawer {
     this.x = this.canvas.width / 2;
     this.y = this.canvas.height * 0.4;
     this.scale = Math.min(this.canvas.width / 1500, this.canvas.height / 1500) * 1.6;
+    this.currentFrame = 0;
+    this.animFrameCount = 0;
+    this.animationRow = 1; // Assuming row 1 is coughing
+    this.coughPauseTime = 60; // ~1 second
   }
 
   startEating() {
@@ -296,6 +293,58 @@ class CatDrawer {
     // This might need adjustment based on spritesheet layout.
     // Original used row 0 for click with treats.
   }
+
+  async wearHat(hatData) {
+    if (!hatData) {
+      this.equippedHatData = null;
+      this.equippedHatImage = null;
+      console.log("CatDrawer: hat unequipped");
+      return;
+    }
+    this.equippedHatData = hatData;
+    this.equippedHatImage = null; // Clear previous image while new one loads
+    console.log("CatDrawer: attempting to wear hat", hatData.name);
+    try {
+      this.equippedHatImage = await loadImage(hatData.imagePath);
+      console.log("CatDrawer: hat image loaded", hatData.name, this.equippedHatImage);
+    } catch (error) {
+      console.error("CatDrawer: failed to load hat image", hatData.name, error);
+      this.equippedHatData = null; // Failed to load, so no hat
+    }
+  }
+
+  drawHat() {
+    if (!this.equippedHatImage || !this.ctx) return;
+
+    // Basic hat positioning - this will need significant adjustment!
+    // These are placeholder values. The original game likely had more precise logic.
+    const hatXOffset = 0; // Adjust as needed
+    const hatYOffset = -this.frameHeight / 2.5; // e.g., place above the cat's sprite center
+    const hatScale = this.equippedHatData.scale || 0.5; // Assuming hat might have its own scale, or default
+
+    this.ctx.save();
+    // Translate to the cat's drawing position, then apply hat-specific offsets
+    this.ctx.translate(this.x + hatXOffset, this.y + hatYOffset);
+    // TODO: Consider cat's rotation if hats should rotate with the cat (this.rotation)
+    this.ctx.scale(this.scale * hatScale, this.scale * hatScale); // Apply cat's scale and hat's relative scale
+    this.ctx.globalAlpha = this.alpha; // Apply cat's alpha
+
+    try {
+      // Draw the hat image centered at its new relative origin
+      // Assumes hat images are designed with their center as the anchor point, or adjust as needed.
+      const hatWidth = this.equippedHatImage.width;
+      const hatHeight = this.equippedHatImage.height;
+
+      this.ctx.drawImage(
+        this.equippedHatImage,
+        -hatWidth / 2, -hatHeight / 2, // Draw centered
+        hatWidth, hatHeight
+      );
+    } catch (error) {
+      console.error('Error drawing hat:', error);
+    }
+    this.ctx.restore();
+  }
 }
 
 function TitleScreen() {
@@ -312,7 +361,9 @@ function TitleScreen() {
   const [hatForReveal, setHatForReveal] = React.useState(null);
   // State to control visibility of the reveal overlay
   const [isRevealOverlayVisible, setIsRevealOverlayVisible] = React.useState(false);
-  const fullnessThreshold = 10; // From game.js
+  const [isHatInventoryOpen, setIsHatInventoryOpen] = React.useState(false);
+  const [hatInventoryFilter, setHatInventoryFilter] = React.useState('all'); // For hat inventory rarity filter
+  // const fullnessThreshold = 10; // From game.js -> Now imported
 
   // TODO: Later, implement feedCat logic which will call setTreats(prevTreats => prevTreats - 1)
   // and other game interactions that modify treats.
@@ -409,23 +460,81 @@ function TitleScreen() {
     };
   }, []); // Empty dependency array to run once on mount
 
+  // Helper function to get a random rarity based on weights
+  const getRandomRarity = () => {
+    const rand = Math.random();
+    let cumulativeProbability = 0;
+    for (const rarity in rarityWeights) {
+      cumulativeProbability += rarityWeights[rarity];
+      if (rand < cumulativeProbability) {
+        return rarity;
+      }
+    }
+    return 'common'; // Fallback, should not be reached if weights sum to 1
+  };
+
+  // Helper function to get a random hat, potentially filtered by rarity
+  const getRandomHat = (targetRarity = null) => {
+    const selectedRarity = targetRarity || getRandomRarity();
+    const hatsOfSelectedRarity = allHats.filter(hat => hat.rarity === selectedRarity);
+
+    if (hatsOfSelectedRarity.length > 0) {
+      const randomIndex = Math.floor(Math.random() * hatsOfSelectedRarity.length);
+      return hatsOfSelectedRarity[randomIndex];
+    } else {
+      // Fallback: if no hats of the selected rarity, try to get any common hat or any hat if no common
+      const commonHats = allHats.filter(hat => hat.rarity === 'common');
+      if (commonHats.length > 0) {
+        const randomIndex = Math.floor(Math.random() * commonHats.length);
+        return commonHats[randomIndex];
+      }
+      // If still no hat, return any hat (or null/undefined if allHats is empty)
+      if (allHats.length > 0) {
+        const randomIndex = Math.floor(Math.random() * allHats.length);
+        return allHats[randomIndex];
+      }
+    }
+    return null; // Should not happen if allHats is populated
+  };
+
+  // Helper function to get unlocked hats, optionally filtered by rarity
+  const getHatsByRarity = (rarityFilter = 'all') => {
+    if (!unlockedHats || unlockedHats.size === 0) {
+      return []; // No hats unlocked yet
+    }
+
+    let filteredHats = [];
+    for (const hat of allHats) {
+      if (unlockedHats.has(hat.id)) {
+        if (rarityFilter === 'all' || hat.rarity === rarityFilter) {
+          filteredHats.push(hat);
+        }
+      }
+    }
+    return filteredHats;
+  };
+
   const triggerGenerateHairball = () => {
     if (catDrawerRef.current) catDrawerRef.current.startCoughing();
-    const mockHat = {
-      id: 'party_hat',
-      name: 'Party Hat',
-      rarity: 'common', // Rarities: common, uncommon, rare, legendary
-      imagePath: '/assets/hats/party_hat.png', // Ensure this asset exists in public/assets/hats/
-      isUnlocked: true // Or determine based on collection
+
+    const randomHat = getRandomHat(); // Get a random hat based on rarity weights
+
+    if (!randomHat) {
+      console.error("Could not get a random hat. Check hat configurations and rarity weights.");
+      // Potentially use a default/fallback hat if randomHat is null
+      // For now, we'll proceed, but performOpenHairball might have issues if currentHairball is not set
+      // setCurrentHairball(mockHat); // Fallback to old mockHat if needed, but ideally getRandomHat always returns something
+      return; // Exit if no hat could be determined
+    }
+
+    const newHairball = {
+      hat: randomHat,
+      rarity: randomHat.rarity
     };
-    const mockHairball = {
-      hat: mockHat,
-      rarity: mockHat.rarity // Or a separate rarity for the hairball itself if needed
-    };
-    setCurrentHairball(mockHairball);
+    setCurrentHairball(newHairball);
     setIsHairballActive(true);
     // TODO: Play cat coughing animation
-    console.log(`Hairball generated with ${mockHat.name}! Click overlay to open.`);
+    console.log(`Hairball generated with ${randomHat.name}! Click overlay to open.`);
   };
 
   const performFeedCatActions = () => {
@@ -505,6 +614,41 @@ function TitleScreen() {
     // Fullness is now only driven by feedCat or direct debug if we add one for it.
   };
 
+  const toggleHatInventory = () => {
+    setIsHatInventoryOpen(prev => !prev);
+  };
+
+  const handleRarityFilterClick = (rarity) => {
+    setHatInventoryFilter(rarity);
+  };
+
+  const handleEquipHat = (hatId) => {
+    const hatToEquip = allHats.find(h => h.id === hatId);
+    if (hatToEquip) {
+      if (!unlockedHats.has(hatId)) {
+        console.log("Cannot equip locked hat:", hatToEquip.name);
+        // Optionally, provide visual feedback to the user that the hat is locked
+        return;
+      }
+      setEquippedHatId(hatId);
+      if (catDrawerRef.current) {
+        catDrawerRef.current.wearHat(hatToEquip); // Method to be added to CatDrawer
+      }
+      console.log('Equipping hat:', hatToEquip.name);
+      setIsHatInventoryOpen(false); // Close inventory after selection
+    } else {
+      console.error('Could not find hat with id:', hatId);
+    }
+  };
+
+  // Memoize the list of hats to display in the inventory
+  const hatsToDisplayInInventory = React.useMemo(() => {
+    if (hatInventoryFilter === 'all') {
+      return allHats;
+    }
+    return allHats.filter(hat => hat.rarity === hatInventoryFilter);
+  }, [hatInventoryFilter]); // allHats is stable from import, so only hatInventoryFilter is a dependency
+
   return (
     <>
       {/* The original index.html had a <link rel="stylesheet" href="styles.css">.
@@ -535,7 +679,11 @@ function TitleScreen() {
               <span>Change Avatar</span>
             </button>
 
-            <button id="hat-closet-button" className="ui-button">
+            <button
+              id="hat-closet-button"
+              className="ui-button"
+              onClick={toggleHatInventory} // Open hat inventory
+            >
               <img src="/assets/hat-icon.png" alt="Hat Closet" className="hat-icon" />
               <span>Hat Closet</span>
             </button>
@@ -573,19 +721,80 @@ function TitleScreen() {
           <div id="avatars-grid"></div>
         </div>
 
-        <div id="hat-inventory" className="hidden">
+        <div id="hat-inventory" className={isHatInventoryOpen ? '' : 'hidden'}>
           <div className="inventory-header">
             <h2>Hat Collection</h2>
-            <button id="close-inventory">×</button>
+            <button id="close-inventory" onClick={toggleHatInventory}>×</button> {/* Close hat inventory */}
           </div>
           <div className="rarity-filters">
-            <button className="rarity-filter active" data-rarity="all">All</button>
-            <button className="rarity-filter" data-rarity="common">Common</button>
-            <button className="rarity-filter" data-rarity="uncommon">Uncommon</button>
-            <button className="rarity-filter" data-rarity="rare">Rare</button>
-            <button className="rarity-filter" data-rarity="legendary">Legendary</button>
+            {/* Update buttons to use hatInventoryFilter state and click handler */}
+            <button
+              className={`rarity-filter ${hatInventoryFilter === 'all' ? 'active' : ''}`}
+              data-rarity="all"
+              onClick={() => handleRarityFilterClick('all')}
+            >
+              All
+            </button>
+            <button
+              className={`rarity-filter ${hatInventoryFilter === 'common' ? 'active' : ''}`}
+              data-rarity="common"
+              onClick={() => handleRarityFilterClick('common')}
+            >
+              Common
+            </button>
+            <button
+              className={`rarity-filter ${hatInventoryFilter === 'uncommon' ? 'active' : ''}`}
+              data-rarity="uncommon"
+              onClick={() => handleRarityFilterClick('uncommon')}
+            >
+              Uncommon
+            </button>
+            <button
+              className={`rarity-filter ${hatInventoryFilter === 'rare' ? 'active' : ''}`}
+              data-rarity="rare"
+              onClick={() => handleRarityFilterClick('rare')}
+            >
+              Rare
+            </button>
+            <button
+              className={`rarity-filter ${hatInventoryFilter === 'legendary' ? 'active' : ''}`}
+              data-rarity="legendary"
+              onClick={() => handleRarityFilterClick('legendary')}
+            >
+              Legendary
+            </button>
           </div>
-          <div id="hats-grid"></div>
+          <div id="hats-grid">
+            {isHatInventoryOpen && (
+              <>
+                {hatsToDisplayInInventory.length > 0 ? (
+                  hatsToDisplayInInventory.map(hat => {
+                    const isUnlocked = unlockedHats.has(hat.id);
+                    const isEquipped = equippedHatId === hat.id;
+                    return (
+                      <div
+                        key={hat.id}
+                        className={`hat-item ${isEquipped ? 'equipped' : ''} ${isUnlocked ? 'unlocked' : 'locked'}`}
+                        data-hat-id={hat.id}
+                        onClick={() => isUnlocked && handleEquipHat(hat.id)}
+                        style={{ cursor: isUnlocked ? 'pointer' : 'not-allowed' }}
+                      >
+                        <img src={hat.imagePath} alt={hat.name} />
+                        <div className="hat-item-name">{hat.name}</div>
+                        {!isUnlocked && <div className="lock-icon">🔒</div>} {/* Optional: Add a lock icon styled via CSS */}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p>
+                    {hatInventoryFilter === 'all' && unlockedHats.size === 0
+                      ? "No hats unlocked yet. Keep feeding your cat!"
+                      : `No ${hatInventoryFilter !== 'all' ? hatInventoryFilter : ''} hats currently available matching this filter.`}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Hat Reveal Overlay - Conditionally Rendered */}
@@ -593,11 +802,7 @@ function TitleScreen() {
           <div className="hat-reveal-overlay visible">
             <div
               className="hat-reveal-display"
-            // The CSS has transition for transform and opacity.
-            // Keyframes float-in/float-out can be added via classes if needed for more complex animation.
-            // For initial appearance, the .visible on overlay and direct rendering is enough.
-            // The CSS for .hat-reveal-display has a starting scale(0.5) and opacity 0,
-            // and transitions to scale(1) and opacity 1 when the parent overlay becomes .visible.
+            // The CSS for .hat-reveal-display handles the reveal animation (scale and opacity transition).
             >
               <img src={hatForReveal.imagePath} alt={hatForReveal.name} />
               <div className={`hat-name ${hatForReveal.rarity.toLowerCase()}`}>
