@@ -43,7 +43,12 @@ const games = [
     id: 'jumpspikes',
     title: 'Jump Spikes',
     srcPath: 'games/jumpspikes/index.html',
-  }
+  },
+  {
+    id: 'spaceblasters',
+    title: 'Cyber Space Blasters',
+    srcPath: 'games/spaceblasters/index.html',
+  },
 ];
 
 function GameDiscovery() {
