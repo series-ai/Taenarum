@@ -149,7 +149,7 @@ import { getRandomRarity, getRandomHat } from './utils/gameUtils';
 function TitleScreen() {
   const canvasRef = React.useRef(null);
   const catDrawerRef = React.useRef(null);
-  const [treats, setTreats] = React.useState(10);
+  const [treats, setTreats] = React.useState(null);
   const [fullness, setFullness] = React.useState(0);
   const [unlockedHats, setUnlockedHats] = React.useState(new Set());
   const [playerDisplayAvatarId, setPlayerDisplayAvatarId] = React.useState(defaultAvatarId);
@@ -190,6 +190,11 @@ function TitleScreen() {
   }, []);
 
   React.useEffect(() => {
+    if (treats === null) {
+      // don't save null treats
+      return;
+    }
+
     const gameStateToSave = {
       treats,
       fullness,
@@ -204,6 +209,15 @@ function TitleScreen() {
       console.error('Failed to save game state to localStorage:', error);
     }
   }, [treats, fullness, unlockedHats, playerDisplayAvatarId, equippedHatId]);
+
+  React.useEffect(() => {
+    // load player data from localStorage
+    const playerDataString = localStorage.getItem('metagameGameState');
+    if (playerDataString) {
+      const playerData = JSON.parse(playerDataString);
+      setTreats(playerData.treats);
+    }
+  }, []);
 
   React.useEffect(() => {
     const canvas = canvasRef.current;

@@ -23,8 +23,8 @@ function updateMoneyBalance(amount) {
   if (playerDataString) {
     const playerData = JSON.parse(playerDataString);
     playerData.treats += amount;
-    // Note: You might want to save the updated playerData back to localStorage here
-    // localStorage.setItem('metagameGameState', JSON.stringify(playerData));
+    // Note: Save the updated playerData back to localStorage here
+    localStorage.setItem('metagameGameState', JSON.stringify(playerData));
   }
 }
 
