@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 // Ensure App.css is imported if GameDiscovery is meant to use .fullscreen-component from it.
 // Typically, App.css is imported in App.js. If these styles are global, it's fine.
 // import './App.css'; // Or a specific CSS file for GameDiscovery if preferred
@@ -33,23 +33,17 @@ const games = [
     id: 'buckethat',
     title: 'Bucket Hat',
     srcPath: 'games/buckethat/index.html',
-    width: '400',
-    height: '640',
   },
   {
     id: 'blobderby',
     title: 'Blob Derby',
     srcPath: 'games/blobderby/index.html',
-    width: '360',
-    height: '640',
   },
   // Add more game objects here as needed
   // {
   //   id: 'newgame',
   //   title: 'New Game',
   //   srcPath: 'games/newgame/index.html',
-  //   width: '400',
-  //   height: '600',
   // },
 ];
 
@@ -59,6 +53,7 @@ function GameDiscovery() {
   const [currentGameIndex, setCurrentGameIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
   const [touchStartY, setTouchStartY] = useState(null);
+  const iframeRef = useRef(null);
 
   useEffect(() => {
     const id = getAvatarIdFromLocalStorage();
@@ -107,6 +102,15 @@ function GameDiscovery() {
   };
 
   const handleTouchStart = (e) => {
+    // Check if the touch target is the iframe itself
+    if (iframeRef.current && e.target === iframeRef.current) {
+      // If touch started on the iframe, do not process for swipe navigation.
+      // Ensure swipe state is reset in case a previous swipe was aborted.
+      setTouchStartX(null);
+      setTouchStartY(null);
+      return;
+    }
+    // If touch started outside the iframe, proceed with swipe detection.
     setTouchStartX(e.touches[0].clientX);
     setTouchStartY(e.touches[0].clientY);
   };
@@ -142,38 +146,77 @@ function GameDiscovery() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh', // Ensure it takes full viewport height for swipe
-        width: '100vw',  // Ensure it takes full viewport width for swipe
-        overflow: 'hidden' // Prevents scrollbars if content is larger
+        justifyContent: 'space-between',
+        height: '100vh',
+        width: '100vw',
+        overflow: 'hidden',
+        padding: '20px 0',
+        boxSizing: 'border-box',
       }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <h2>{currentGame.title}</h2>
+      <h2 style={{ flexShrink: 0, margin: '0 0 10px 0' }}>{currentGame.title}</h2>
       {/* Optional: Display current game score
       {gameScore !== null && (
         <h3>Game Score: {gameScore}</h3>
       )} */}
 
-      <div style={{ margin: '20px 0' }}>
+      <div style={{
+        width: '95%',
+        flexGrow: 1,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
         <iframe
+          ref={iframeRef}
           src={`${currentGame.srcPath}${avatarSuffix}`}
-          width={currentGame.width}
-          height={currentGame.height}
           title={currentGame.title}
-          id={`gameIframe-${currentGame.id}`} // Unique ID per iframe
-          key={currentGame.id} // Important for React to re-render iframe on change
-          style={{ pointerEvents: 'none' }} // Prevent iframe from capturing touch events needed for swipe
+          id={`gameIframe-${currentGame.id}`}
+          key={currentGame.id}
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none'
+          }}
         />
       </div>
 
-      <div style={{ marginTop: '20px' }}>
-        <button onClick={goToPreviousGame} style={{ marginRight: '10px', padding: '10px 20px', fontSize: '16px' }}>
+      {/* Navigation Buttons */}
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px', flexShrink: 0 }}>
+        <button
+          onClick={goToPreviousGame}
+          style={{
+            marginRight: '10px',
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+          }}
+        >
           Previous Game
         </button>
-        {/* Next Game button removed, swipe up will trigger next game */}
+        <button
+          onClick={goToNextGame}
+          style={{
+            marginLeft: '10px',
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+          }}
+        >
+          Next Game
+        </button>
       </div>
+
       {/* Indicator for current game could be added here, e.g., dots */}
       {/* <div>
         {games.map((game, index) => (
