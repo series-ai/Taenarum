@@ -5,6 +5,17 @@ const ctx = canvas.getContext('2d');
 let pandaSpriteSheet = new Image();
 let pandaSpriteSheetLoaded = false;
 
+// ADDED: List of available spritesheet names
+const availableSpriteSheetNames = [
+    "cat.png",
+    "dragon.png",
+    "duck.png",
+    "bread.png",
+    "panda.png"
+];
+// ADDED: To store loaded spritesheet Image objects
+const loadedSpriteSheets = {};
+
 // Off-screen canvas for tinting
 let offScreenCanvas = null;
 let offCtx = null;
@@ -99,7 +110,7 @@ const pits = [
 let gameState = 'PLAYING'; // Initial state, will expand later
 
 // AI Opponents
-const NUM_AI_OPPONENTS = 1; // Changed to 1 for easier debugging
+const NUM_AI_OPPONENTS = 10; // Changed to 1 for easier debugging
 const aiOpponents = [];
 const aiColors = ['red', 'green', 'purple', 'orange', 'cyan', 'pink', 'brown', '#FFD700', '#C0C0C0', '#2F4F4F'];
 
@@ -1108,7 +1119,13 @@ function initAI() {
     aiOpponents.length = 0; // Clear previous AI if any (for restarts)
     for (let i = 0; i < NUM_AI_OPPONENTS; i++) {
         const startX = (gameWidth / (NUM_AI_OPPONENTS + 1)) * (i + 1) + (Math.random() * 20 - 10);
-        aiOpponents.push({
+        
+        // ADDED: Randomly select a spritesheet for this AI
+        const randomSpriteName = availableSpriteSheetNames[Math.floor(Math.random() * availableSpriteSheetNames.length)];
+        const spritePath = `spritesheets/${randomSpriteName}`;
+
+        // Create a new AI object
+        const newAI = {
             x: Math.max(10, Math.min(gameWidth - 10, startX)),
             y: gameHeight - 30 - (Math.random() * 20),
             size: 20,
@@ -1119,32 +1136,130 @@ function initAI() {
             isPlayer: false,
             id: 'ai' + i,
             stuckDirection: 0,
-
-            // Properties for falling animation (mirroring player)
             isFalling: false,
-            fallingAnimationDuration: 45, // Same as player for consistency
+            fallingAnimationDuration: 45,
             fallingAnimationTick: 0,
-
-            // Sprite properties for AI (mirroring player)
-            spriteSheet: pandaSpriteSheetLoaded ? pandaSpriteSheet : null, // Assign loaded sheet
+            spriteSheet: null, // Will be set once its specific image loads
+            spriteSheetPath: spritePath, // Store the path for loading
+            spriteName: randomSpriteName, // Store the name for potential reuse of loaded images
             spriteWidth: 256,
             spriteHeight: 256,
             animRunUpFrames: [6, 7, 8],
             animRunLeftFrames: [3, 4, 5],
             animIdleFrame: 0,
-            currentAnimFrameValue: 0,      // Initial frame
+            currentAnimFrameValue: 0,
             currentAnimSequenceIndex: 0,
             animationTick: 0,
-            animationSpeed: 5 + Math.floor(Math.random() * 3), // Slight variation in anim speed
+            animationSpeed: 5 + Math.floor(Math.random() * 3),
             isMoving: false,
             currentAnimationType: 'idle',
             spriteShouldBeFlipped: false
-        });
-        // Initialize AI with idle frame if spritesheet is ready
-        if (pandaSpriteSheetLoaded) {
-            aiOpponents[aiOpponents.length - 1].currentAnimFrameValue = aiOpponents[aiOpponents.length - 1].animIdleFrame;
-        }
+        };
+        aiOpponents.push(newAI);
     }
+    // MODIFIED: Now load spritesheets for AIs after they are created
+    loadAISpriteSheets();
+}
+
+// ADDED: Function to load spritesheets for all AIs
+function loadAISpriteSheets() {
+    let spritesToLoad = aiOpponents.length;
+    if (spritesToLoad === 0) {
+        // Optional: callback or flag setting if needed when all AI sprites are done or if no AIs
+        return;
+    }
+
+    aiOpponents.forEach(ai => {
+        // Check if this spritesheet is already loaded or being loaded
+        if (loadedSpriteSheets[ai.spriteName]) {
+            if (loadedSpriteSheets[ai.spriteName] instanceof Image && loadedSpriteSheets[ai.spriteName].complete) {
+                // Already loaded and complete
+                ai.spriteSheet = loadedSpriteSheets[ai.spriteName];
+                ai.currentAnimFrameValue = ai.animIdleFrame;
+                spritesToLoad--;
+                if (spritesToLoad === 0) {
+                    // All AI sprites are now assigned (either new or from cache)
+                    // console.log("All AI sprites assigned.");
+                }
+            } else if (loadedSpriteSheets[ai.spriteName] instanceof Image) {
+                // Image exists but might not be loaded yet (e.g. another AI is already loading it)
+                // Rely on its onload to set for all AIs wanting this sheet
+                // For simplicity, we'll let the original loader handle it.
+                // This can be improved by queuing AIs waiting for the same sheet.
+                // For now, if it's loading, this AI will get it once pandaSpriteSheet.onload logic is adapted.
+                // OR, more robustly, check periodically or use a promise.
+                // Let's assume for now that if it exists, it will eventually load.
+                // A quick check:
+                 if (loadedSpriteSheets[ai.spriteName].src === ai.spriteSheetPath && loadedSpriteSheets[ai.spriteName].complete) {
+                     ai.spriteSheet = loadedSpriteSheets[ai.spriteName];
+                     ai.currentAnimFrameValue = ai.animIdleFrame;
+                     spritesToLoad--;
+                 } else {
+                    // It's loading, wait for its onload. The global init's onload should handle this.
+                    // This path needs careful handling if multiple AIs request an uncached image simultaneously.
+                    // The current pandaSpriteSheet.onload in init() handles all AIs, this needs generalization.
+                    // For now, we'll create a new image object for each AI to ensure distinct loading,
+                    // but ideally, we'd cache as intended by loadedSpriteSheets.
+                    // Reverting to simpler: each AI loads its own for now, caching can be a refinement.
+
+                    const aiSprite = new Image();
+                    aiSprite.src = ai.spriteSheetPath;
+                    aiSprite.onload = () => {
+                        ai.spriteSheet = aiSprite;
+                        ai.currentAnimFrameValue = ai.animIdleFrame;
+                        loadedSpriteSheets[ai.spriteName] = aiSprite; // Cache it
+                        spritesToLoad--;
+                        // console.log(`AI ${ai.id} sprite ${ai.spriteName} loaded.`);
+                        if (spritesToLoad === 0) {
+                            // console.log("All AI sprites dynamically loaded.");
+                        }
+                    };
+                    aiSprite.onerror = () => {
+                        console.error(`Failed to load sprite: ${ai.spriteSheetPath} for AI ${ai.id}`);
+                        spritesToLoad--;
+                        if (spritesToLoad === 0) {
+                            // console.log("Finished attempting to load all AI sprites.");
+                        }
+                    };
+                 }
+
+            }
+        } else {
+            // Not loaded and not even an Image object yet, so load it
+            const aiSprite = new Image();
+            loadedSpriteSheets[ai.spriteName] = aiSprite; // Store the Image object itself to indicate it's loading
+            aiSprite.src = ai.spriteSheetPath;
+
+            aiSprite.onload = () => {
+                ai.spriteSheet = aiSprite; // Assign to the current AI
+                ai.currentAnimFrameValue = ai.animIdleFrame;
+                // console.log(`AI ${ai.id} sprite ${ai.spriteName} loaded and assigned.`);
+                
+                // Now, assign this loaded sheet to any other AIs that were waiting for the SAME spriteName
+                aiOpponents.forEach(otherAI => {
+                    if (otherAI.spriteName === ai.spriteName && !otherAI.spriteSheet) {
+                        otherAI.spriteSheet = aiSprite;
+                        otherAI.currentAnimFrameValue = otherAI.animIdleFrame;
+                        // console.log(`Assigned loaded sprite ${ai.spriteName} to waiting AI ${otherAI.id}`);
+                    }
+                });
+
+                spritesToLoad--;
+                if (spritesToLoad === 0) {
+                    // console.log("All unique AI sprites dynamically loaded and assigned.");
+                }
+            };
+            aiSprite.onerror = () => {
+                console.error(`Failed to load sprite: ${ai.spriteSheetPath} for AI ${ai.id}`);
+                // Mark as failed or remove from loadedSpriteSheets to allow retry? For now, just log.
+                delete loadedSpriteSheets[ai.spriteName]; 
+                spritesToLoad--;
+                if (spritesToLoad === 0) {
+                    // console.log("Finished attempting to load all AI sprites (with errors).");
+                }
+            };
+        }
+    });
 }
 
 function isPointInRect(point, rect) {
@@ -1247,41 +1362,44 @@ function resolveWallCollisionForCharacter(character) {
 // Initialization
 function init() {
     resizeCanvas(); // Initial resize
-    initAI(); // Initialize AI opponents
+    initAI(); // Initialize AI opponents (this will now also trigger their sprite loading)
     raceStartTime = performance.now();
     gameState = 'PLAYING'; // Start the game in playing state
 
-    // Load panda spritesheet
+    // Load panda spritesheet FOR THE PLAYER
     pandaSpriteSheet.src = 'spritesheets/panda.png';
     pandaSpriteSheet.onload = () => {
         player.spriteSheet = pandaSpriteSheet;
-        pandaSpriteSheetLoaded = true;
+        pandaSpriteSheetLoaded = true; // This global flag might still be useful for player or generic checks
         player.currentAnimFrameValue = player.animIdleFrame;
         // console.log('Panda spritesheet loaded and assigned to player.');
 
-        // Assign spritesheet to already initialized AI if they missed it
-        aiOpponents.forEach(ai => {
-            if (!ai.spriteSheet) {
-                ai.spriteSheet = pandaSpriteSheet;
-                ai.currentAnimFrameValue = ai.animIdleFrame;
-            }
-        });
+        // REMOVED AI assignment from here, it's handled by loadAISpriteSheets and their individual onload.
+        // aiOpponents.forEach(ai => {
+        // if (!ai.spriteSheet) { // AIs now load their own, panda is just one option
+        // ai.spriteSheet = pandaSpriteSheet;
+        // ai.currentAnimFrameValue = ai.animIdleFrame;
+        // }
+        // });
 
         // Initialize off-screen canvas for tinting now that sprite dimensions are known
-        if (player.spriteSheet && player.spriteWidth > 0 && player.spriteHeight > 0 && !offScreenCanvas) {
+        // This should ideally wait until at least one sprite (player or AI) is loaded
+        // to get dimensions if they can vary. For now, assuming all sprites are 256x256.
+        if (!offScreenCanvas && player.spriteSheet && player.spriteWidth > 0 && player.spriteHeight > 0) {
             offScreenCanvas = document.createElement('canvas');
             offScreenCanvas.width = player.spriteWidth;  // e.g., 256
             offScreenCanvas.height = player.spriteHeight; // e.g., 256
             offCtx = offScreenCanvas.getContext('2d');
-            // console.log(`Off-screen canvas for tinting initialized to ${offScreenCanvas.width}x${offScreenCanvas.height}`);
+            // console.log(`Off-screen canvas for tinting initialized to ${offScreenCanvas.width}x${offScreenCanvas.height} based on player sprite.`);
         } else if (offScreenCanvas) {
             // console.log('Off-screen canvas already initialized.');
         } else {
-            // console.error('Failed to initialize off-screen canvas: player sprite dimensions not available.');
+            // console.error('Failed to initialize off-screen canvas: player sprite dimensions not available or sprite not loaded.');
         }
     };
     pandaSpriteSheet.onerror = () => {
-        console.error('Failed to load panda spritesheet.');
+        console.error('Failed to load panda spritesheet for player.');
+        pandaSpriteSheetLoaded = false; // Ensure this is false if player's main sprite fails
     };
 
     // Event listeners
