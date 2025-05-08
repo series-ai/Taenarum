@@ -64,17 +64,37 @@ class Game {
             this.saveGameState();
         });
         
-        // Initialize collections
-        console.log('Initializing collections...');
+        // Initialize collections and wait for assets to load
+        console.log('Initializing game assets...');
+        
+        // Wait for background to load
+        await this.background.loadBackground();
+        console.log('Background loaded');
+        
+        // Wait for cat sprites to load
+        await this.cat.loadSprites();
+        console.log('Cat sprites loaded');
+        
+        // Initialize hat collection
         await this.hatCollection.initialize();
-        console.log('Collections initialized');
+        console.log('Hat collection initialized');
         
         // Load saved game state
         this.loadGameState();
         
+        // Set default avatar to tabby if no avatar is set
+        if (!this.cat.avatar) {
+            await this.cat.setAvatar('tabby');
+        }
+        
+        // Update UI icons to match current state
+        this.updateHatIcon();
+        this.updateAvatarIcon();
+        
         // Start game loop
         this.handleResize();
         this.gameLoop();
+        console.log('Game loop started');
     }
     
     handleResize() {
@@ -265,11 +285,21 @@ class Game {
                         this.cat.wearHat(hat);
                     }
                     this.updateInventory(); // Refresh to update selection
+                    this.updateHatIcon(); // Update the hat icon in the top bar
                 });
             }
             
             this.hatsGrid.appendChild(hatElement);
         });
+    }
+    
+    updateHatIcon() {
+        const hatIcon = document.getElementById('hat-icon');
+        if (this.cat.currentHat) {
+            hatIcon.src = this.cat.currentHat.imagePath;
+        } else {
+            hatIcon.src = 'assets/hat-icon.png';
+        }
     }
     
     filterHats(rarity) {
@@ -323,6 +353,8 @@ class Game {
                     
                     // Then set the avatar
                     await this.cat.setAvatar(avatar.id);
+                    // Update the avatar icon in the top bar
+                    this.updateAvatarIcon();
                 }
             });
             
@@ -356,6 +388,15 @@ class Game {
         if (animals.includes(id)) return 'animals';
         if (food.includes(id)) return 'food';
         return 'other';
+    }
+    
+    updateAvatarIcon() {
+        const avatarIcon = document.querySelector('#avatar-button img');
+        if (this.cat.avatar) {
+            avatarIcon.src = `assets/avatars/${this.cat.avatar.sprite.file}`;
+        } else {
+            avatarIcon.src = 'assets/cat-icon.png';
+        }
     }
     
     saveGameState() {

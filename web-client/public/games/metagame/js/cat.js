@@ -35,17 +35,16 @@ class Cat {
         // Avatar properties
         this.avatar = null;
         this.currentHat = null;
-        
-        // Load spritesheet
-        this.loadSprites();
     }
     
     async loadSprites() {
         try {
             this.spritesheet = await GameUtils.loadImage('assets/fatcat.png');
             console.log('Loaded cat spritesheet:', this.spritesheet);
+            return true;
         } catch (error) {
             console.error('Failed to load cat spritesheet:', error);
+            return false;
         }
     }
     
@@ -142,13 +141,13 @@ class Cat {
             
             // Position avatar in fixed location on screen - using frameWidth for consistent square scaling
             const baseSize = this.avatar.sprite.frameWidth;
-            const avatarScale = (this.canvas.width / 1500) * 2.4; // Use single dimension for square scaling
+            const avatarScale = (this.canvas.width / 1500) * 1.8; // Reduced from 2.4 to 1.8 for better proportions
             const padding = 20; // Padding from screen edge
             const avatarX = padding + (baseSize * avatarScale / 2) + 20; // Added 20px to the right
             const avatarY = this.canvas.height - padding - (baseSize * avatarScale / 2) - 150; // Moved up 150px
             
             this.ctx.translate(avatarX, avatarY);
-            this.ctx.scale(avatarScale, avatarScale);
+            this.ctx.scale(-avatarScale, avatarScale); // Flip horizontally by using negative scale
             
             // Draw avatar image
             const sprite = this.avatar.sprite;
@@ -160,11 +159,12 @@ class Cat {
                 baseSize
             );
             
-            // Draw name tag
-            this.ctx.font = '24px Arial';
+            // Draw name tag - need to flip back for text
+            this.ctx.scale(-1, 1); // Flip back horizontally for text
+            this.ctx.font = '16px Arial'; // Reduced from 24px to 16px
             this.ctx.fillStyle = '#666';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(this.avatar.displayName, 0, sprite.frameHeight / 2 + 30);
+            this.ctx.fillText(this.avatar.displayName, 0, baseSize / 2 + 20); // Using baseSize instead of frameHeight
             
             this.ctx.restore();
         }
@@ -214,6 +214,11 @@ class Cat {
     
     wearHat(hat) {
         this.currentHat = hat;
+        // Update the hat icon in the menu
+        const game = document.getElementById('game-container').__game;
+        if (game) {
+            game.updateHatIcon();
+        }
     }
     
     removeHat() {

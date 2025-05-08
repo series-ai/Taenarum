@@ -3,7 +3,6 @@ class Background {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.image = null;
-        this.loadBackground();
     }
 
     async loadBackground() {
@@ -11,6 +10,7 @@ class Background {
             console.log('Starting to load background image...');
             this.image = await GameUtils.loadImage('assets/fishbg.png');
             console.log('Successfully loaded background image:', this.image.width, 'x', this.image.height);
+            return true;
         } catch (error) {
             console.error('Failed to load background image:', error);
             // Try alternate path
@@ -18,8 +18,10 @@ class Background {
                 console.log('Trying alternate path...');
                 this.image = await GameUtils.loadImage('fishbg.png');
                 console.log('Successfully loaded background image from alternate path');
+                return true;
             } catch (altError) {
                 console.error('Failed to load from alternate path:', altError);
+                return false;
             }
         }
     }
