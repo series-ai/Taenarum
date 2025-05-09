@@ -216,8 +216,8 @@ class CatDrawer {
     const baseSize = this.playerAvatarDisplay.frameWidth; // Use avatar's own frameWidth for base
     const avatarScale = (this.canvas.width / 1500) * 1.2; // Adjusted scale for display icon
     const padding = 20;
-    const avatarX = padding + (baseSize * avatarScale / 2) + 10; // Minor x adjustment
-    const avatarY = this.canvas.height - padding - (baseSize * avatarScale / 2) - 20; // Positioned lower
+    const avatarX = padding;
+    const avatarY = this.canvas.height - padding - (baseSize * avatarScale / 2) - 30; // Positioned lower
 
     this.ctx.translate(avatarX, avatarY);
     this.ctx.scale(avatarScale, avatarScale); // Normal scale, no flip needed if sprites are oriented correctly
@@ -228,23 +228,19 @@ class CatDrawer {
         this.playerAvatarDisplay.image,
         0, // Assuming first frame of spritesheet is the preview
         0,
-        this.playerAvatarDisplay.frameWidth, // Use actual frame width of the avatar sprite
-        this.playerAvatarDisplay.frameHeight, // Use actual frame height of the avatar sprite
-        -this.playerAvatarDisplay.frameWidth / 2, // Center the drawn sprite
-        -this.playerAvatarDisplay.frameHeight / 2,
-        this.playerAvatarDisplay.frameWidth,
-        this.playerAvatarDisplay.frameHeight
+        128,
+        128
       );
     } catch (error) {
       console.error('Error drawing player avatar display image:', error);
     }
 
     // Draw name tag
-    this.ctx.font = '16px Arial';
+    this.ctx.font = '24px Arial';
     this.ctx.fillStyle = '#333'; // Darker text
     this.ctx.textAlign = 'center';
     // Position name below the avatar image
-    this.ctx.fillText(this.playerAvatarDisplay.name, 0, (this.playerAvatarDisplay.frameHeight / 2) + 20);
+    this.ctx.fillText(this.playerAvatarDisplay.name, 64, 128 + 50);
 
     this.ctx.restore();
   }
