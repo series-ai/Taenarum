@@ -5,6 +5,10 @@ const ctx = canvas.getContext('2d');
 let pandaSpriteSheet = new Image();
 let pandaSpriteSheetLoaded = false;
 
+// ADDED: Fish treat image
+let fishTreatImage = new Image();
+let fishTreatImageLoaded = false;
+
 // ADDED: List of available spritesheet names
 const availableSpriteSheetNames = [
     "axolotl.png",
@@ -45,6 +49,7 @@ const player = {
     finishTime: 0,
     isPlayer: true, // To distinguish player from AI
     rankDisplayString: "", // ADDED: To store the rank/status for display
+    fishEarned: 0, // ADDED: To store fish earned by player
 
     // Properties for falling animation
     isFalling: false,
@@ -775,53 +780,53 @@ function determineRaceOutcome() {
 
     let playerResult = finishers.find(f => f.isPlayer);
     player.rankDisplayString = "DNF"; // Default to DNF
-    let fishEarned = 0; // ADDED: Initialize fishEarned
+    player.fishEarned = 0; // MODIFIED: Initialize and use player.fishEarned
 
     if (playerResult) {
         if (playerResult.time === Infinity) { // Player fell in a pit
             gameState = 'GAME_LOSE';
             player.rankDisplayString = "Failed to Finish (Fell)";
-            fishEarned = 0; // ADDED: 0 fish for falling
-            return; // Return early as no rank calculation needed for postMessage
-        }
-        // Find rank only among actual finishers
-        const actualFinishersSorted = finishers.filter(f => f.time !== Infinity).sort((a,b) => a.time - b.time);
-        const playerActualRank = actualFinishersSorted.findIndex(f => f.isPlayer) + 1;
+            player.fishEarned = 0; // MODIFIED: 0 fish for falling
+        } else { // Player finished or DNF not by falling
+            // Find rank only among actual finishers
+            const actualFinishersSorted = finishers.filter(f => f.time !== Infinity).sort((a,b) => a.time - b.time);
+            const playerActualRank = actualFinishersSorted.findIndex(f => f.isPlayer) + 1;
 
-        if (playerActualRank > 0) { // Player has a valid rank among finishers
-            player.rankDisplayString = `Finished: ${getOrdinal(playerActualRank)}`;
-            if (playerActualRank <= qualificationRankLimit) {
-                gameState = 'GAME_WIN';
-            } else {
-                gameState = 'GAME_LOSE'; // Finished but not qualified
-                player.rankDisplayString += " (Not Qualified)";
+            if (playerActualRank > 0) { // Player has a valid rank among finishers
+                player.rankDisplayString = `Finished: ${getOrdinal(playerActualRank)}`;
+                if (playerActualRank <= qualificationRankLimit) {
+                    gameState = 'GAME_WIN';
+                } else {
+                    gameState = 'GAME_LOSE'; // Finished but not qualified
+                    player.rankDisplayString += " (Not Qualified)";
+                }
+
+                // MODIFIED: Calculate fish based on rank
+                if (playerActualRank === 1) {
+                    player.fishEarned = 10;
+                } else if (playerActualRank === 2) {
+                    player.fishEarned = 5;
+                } else if (playerActualRank === 3) {
+                    player.fishEarned = 3;
+                } else { // Finished but not top 3
+                    player.fishEarned = 1;
+                }
+
+            } else { // Player result exists but not in actualFinishersSorted (should not happen if time isn't Infinity)
+                 gameState = 'GAME_LOSE';
+                 player.rankDisplayString = "Failed to Finish";
+                 player.fishEarned = 0; // MODIFIED
             }
-
-            // ADDED: Calculate fish based on rank
-            if (playerActualRank === 1) {
-                fishEarned = 10;
-            } else if (playerActualRank === 2) {
-                fishEarned = 5;
-            } else if (playerActualRank === 3) {
-                fishEarned = 3;
-            } else { // Finished but not top 3
-                fishEarned = 1;
-            }
-
-        } else { // Player result exists but not in actualFinishersSorted (should not happen if time isn't Infinity)
-             gameState = 'GAME_LOSE';
-             player.rankDisplayString = "Failed to Finish";
-             fishEarned = 0; // ADDED: 0 fish if failed to finish
         }
     } else {
         // Player did not finish by the time race ended
         gameState = 'GAME_LOSE';
         player.rankDisplayString = "Did Not Finish";
-        fishEarned = 0; // ADDED: 0 fish if did not finish
+        player.fishEarned = 0; // MODIFIED
     }
 
-    // ADDED: Send message to parent window
-    const message = { type: 'gameOver', game: 'blobderby', fishScore: fishEarned, rank: playerResult && playerResult.time !== Infinity ? (finishers.filter(f => f.time !== Infinity).findIndex(f => f.isPlayer) + 1) : null, status: player.rankDisplayString };
+    // Send message to parent window, now using player.fishEarned
+    const message = { type: 'gameOver', game: 'blobderby', fishScore: player.fishEarned, rank: playerResult && playerResult.time !== Infinity ? (finishers.filter(f => f.time !== Infinity).findIndex(f => f.isPlayer) + 1) : null, status: player.rankDisplayString };
     const parentOrigin = window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0 ? window.location.ancestorOrigins[0] : '*';
     
     console.log("Game sending message:", message, "to origin:", parentOrigin);
@@ -1108,9 +1113,41 @@ function drawWinScreen() {
     ctx.fillStyle = 'white';
     ctx.font = '24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('You Win!', gameWidth / 2, gameHeight / 2 - 60);
+    ctx.fillText('You Win!', gameWidth / 2, gameHeight / 2 - 80);
     ctx.font = '18px Arial';
-    ctx.fillText(player.rankDisplayString, gameWidth / 2, gameHeight / 2 - 30);
+    ctx.fillText(player.rankDisplayString, gameWidth / 2, gameHeight / 2 - 50);
+
+    // Display Fish Earned with image
+    const fishText = "Fish Earned: ";
+    const fishCount = player.fishEarned.toString();
+    const fishImageWidth = 20; // Desired width for the fish image icon
+    const fishImageHeight = 20; // Desired height for the fish image icon
+    const spacing = 5; // Spacing between elements
+
+    let totalTextWidth = ctx.measureText(fishText).width + ctx.measureText(fishCount).width;
+    if (fishTreatImageLoaded) {
+        totalTextWidth += fishImageWidth + spacing; // Add space for image and its spacing
+    }
+
+    let currentX = (gameWidth - totalTextWidth) / 2; // Starting X to center the whole block
+
+    ctx.fillText(fishText, currentX + ctx.measureText(fishText).width / 2, gameHeight / 2 - 20);
+    currentX += ctx.measureText(fishText).width;
+
+    if (fishTreatImageLoaded) {
+        try {
+            ctx.drawImage(fishTreatImage, currentX, gameHeight / 2 - 20 - fishImageHeight / 1.5, fishImageWidth, fishImageHeight);
+        } catch (e) {
+            console.error("Error drawing fish treat image:", e);
+            // Fallback to just drawing text if image fails for some reason
+            ctx.fillText(fishCount, currentX + ctx.measureText(fishCount).width / 2, gameHeight / 2 - 20);
+        }
+        currentX += fishImageWidth + spacing;
+        ctx.fillText(fishCount, currentX + ctx.measureText(fishCount).width / 2, gameHeight / 2 - 20);
+    } else {
+        // Fallback if image not loaded
+        ctx.fillText(fishCount, currentX + ctx.measureText(fishCount).width / 2, gameHeight / 2 - 20);
+    }
 
     // Draw Proceed button
     ctx.fillStyle = '#4CAF50'; // Green
@@ -1154,6 +1191,7 @@ function resetGame() {
     player.isMoving = false;
     player.spriteShouldBeFlipped = false;
     player.rankDisplayString = ""; // ADDED: Reset rank display string
+    player.fishEarned = 0; // ADDED: Reset fishEarned
 
 
     finishers.length = 0; // Clear finishers array
@@ -1527,6 +1565,17 @@ function getOrdinal(n) {
 // Initialization
 function init() {
     resizeCanvas(); // Initial resize
+
+    // Load fish treat image
+    fishTreatImage.src = 'misc/fish-treat.png';
+    fishTreatImage.onload = () => {
+        fishTreatImageLoaded = true;
+        console.log("Fish treat image loaded.");
+    };
+    fishTreatImage.onerror = () => {
+        fishTreatImageLoaded = false;
+        console.error("Failed to load fish treat image.");
+    };
 
     // Determine player sprite from URL parameter
     let playerSpriteName = "panda.png"; // Default
