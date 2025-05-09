@@ -12,12 +12,6 @@ export const loadImage = (src) => {
 
 export const allHats = [
   {
-    id: 'party_hat', // Kept from previous mock, not in original config.js
-    name: 'Party Hat',
-    rarity: 'common',
-    imagePath: '/assets/hats/party_hat.png',
-  },
-  {
     id: 'watermelon',
     name: 'Watermelon Hat',
     rarity: 'uncommon',
