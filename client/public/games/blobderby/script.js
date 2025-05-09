@@ -775,12 +775,14 @@ function determineRaceOutcome() {
 
     let playerResult = finishers.find(f => f.isPlayer);
     player.rankDisplayString = "DNF"; // Default to DNF
+    let fishEarned = 0; // ADDED: Initialize fishEarned
 
     if (playerResult) {
         if (playerResult.time === Infinity) { // Player fell in a pit
             gameState = 'GAME_LOSE';
             player.rankDisplayString = "Failed to Finish (Fell)";
-            return;
+            fishEarned = 0; // ADDED: 0 fish for falling
+            return; // Return early as no rank calculation needed for postMessage
         }
         // Find rank only among actual finishers
         const actualFinishersSorted = finishers.filter(f => f.time !== Infinity).sort((a,b) => a.time - b.time);
@@ -794,18 +796,36 @@ function determineRaceOutcome() {
                 gameState = 'GAME_LOSE'; // Finished but not qualified
                 player.rankDisplayString += " (Not Qualified)";
             }
+
+            // ADDED: Calculate fish based on rank
+            if (playerActualRank === 1) {
+                fishEarned = 10;
+            } else if (playerActualRank === 2) {
+                fishEarned = 5;
+            } else if (playerActualRank === 3) {
+                fishEarned = 3;
+            } else { // Finished but not top 3
+                fishEarned = 1;
+            }
+
         } else { // Player result exists but not in actualFinishersSorted (should not happen if time isn't Infinity)
              gameState = 'GAME_LOSE';
              player.rankDisplayString = "Failed to Finish";
+             fishEarned = 0; // ADDED: 0 fish if failed to finish
         }
     } else {
-        // Player did not finish by the time race ended (e.g., timed out while still on track, though current logic pushes to RACE_OVER if player finishes)
-        // Or, player.finished was true (e.g. due to falling) but they weren't added to finishers correctly before this.
-        // Given current checkAllFinished, player should be in finishers if player.finished is true.
-        // This case might imply race ended due to AIs finishing and player DNF without explicit fall.
+        // Player did not finish by the time race ended
         gameState = 'GAME_LOSE';
         player.rankDisplayString = "Did Not Finish";
+        fishEarned = 0; // ADDED: 0 fish if did not finish
     }
+
+    // ADDED: Send message to parent window
+    const message = { type: 'gameOver', game: 'blobderby', fishScore: fishEarned, rank: playerResult && playerResult.time !== Infinity ? (finishers.filter(f => f.time !== Infinity).findIndex(f => f.isPlayer) + 1) : null, status: player.rankDisplayString };
+    const parentOrigin = window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0 ? window.location.ancestorOrigins[0] : '*';
+    
+    console.log("Game sending message:", message, "to origin:", parentOrigin);
+    window.parent.postMessage(message, parentOrigin);
 }
 
 function checkCollisions(character, prevX, prevY) {
