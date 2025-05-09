@@ -101,7 +101,7 @@ function TitleScreen() {
     }
 
     const backgroundDrawer = new BackgroundDrawer(canvas, context);
-    catDrawerRef.current = new CatDrawer(canvas, context, chosenAvatarConfig);
+    catDrawerRef.current = new CatDrawer(canvas, context);
 
     if (equippedHatId) {
       const hatToEquip = allHatsFromConfig.find(h => h.id === equippedHatId);
