@@ -6,7 +6,7 @@ export const loadImage = (src) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = (err) => reject(err); // Pass error object
-    img.src = src;
+    img.src = `${process.env.PUBLIC_URL}/${src}`;
   });
 };
 
@@ -15,67 +15,67 @@ export const allHats = [
     id: 'watermelon',
     name: 'Watermelon Hat',
     rarity: 'uncommon',
-    imagePath: '/assets/hats/watermelon.png'
+    imagePath: 'assets/hats/watermelon.png'
   },
   {
     id: 'viking',
     name: 'Viking Helmet',
     rarity: 'rare',
-    imagePath: '/assets/hats/viking.png'
+    imagePath: 'assets/hats/viking.png'
   },
   {
     id: 'flower',
     name: 'Flower Crown',
     rarity: 'common',
-    imagePath: '/assets/hats/flower.png'
+    imagePath: 'assets/hats/flower.png'
   },
   {
     id: 'pumpkin',
     name: 'Pumpkin Hat',
     rarity: 'uncommon',
-    imagePath: '/assets/hats/pumpkin.png'
+    imagePath: 'assets/hats/pumpkin.png'
   },
   {
     id: 'bunnyears',
     name: 'Bunny Ears',
     rarity: 'rare',
-    imagePath: '/assets/hats/bunnyears.png'
+    imagePath: 'assets/hats/bunnyears.png'
   },
   {
     id: 'fez',
     name: 'Fez',
     rarity: 'uncommon',
-    imagePath: '/assets/hats/fez.png'
+    imagePath: 'assets/hats/fez.png'
   },
   {
     id: 'grad',
     name: 'Graduation Cap',
     rarity: 'rare',
-    imagePath: '/assets/hats/grad.png'
+    imagePath: 'assets/hats/grad.png'
   },
   {
     id: 'santa',
     name: 'Santa Hat',
     rarity: 'rare',
-    imagePath: '/assets/hats/santa.png'
+    imagePath: 'assets/hats/santa.png'
   },
   {
     id: 'construction',
     name: 'Construction Hat',
     rarity: 'common',
-    imagePath: '/assets/hats/construction.png'
+    imagePath: 'assets/hats/construction.png'
   },
   {
     id: 'witchhat',
     name: 'Witch Hat',
     rarity: 'rare',
-    imagePath: '/assets/hats/witchhat.png'
+    imagePath: 'assets/hats/witchhat.png'
   },
   {
     id: 'pirate',
     name: 'Pirate Hat',
     rarity: 'legendary',
-    imagePath: '/assets/hats/pirate.png'
+    imagePath: 'assets/hats/pirate.png'
   }
 ];
 

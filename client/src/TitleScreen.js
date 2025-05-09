@@ -391,12 +391,12 @@ function TitleScreen() {
         >
           <div id="top-bar">
             <div id="treats-counter">
-              <img src="/assets/fish-treat.png" alt="Fish Treat" className="treat-icon" />
+              <img src={`${process.env.PUBLIC_URL}/assets/fish-treat.png`} alt="Fish Treat" className="treat-icon" />
               <span id="treats-count">{treats}</span>
             </div>
 
             <button id="avatar-button" className="ui-button" onClick={toggleAvatarSelector}>
-              <img src={playerDisplayAvatarSprite} alt="Change Avatar" className="avatar-icon" />
+              <img src={`${process.env.PUBLIC_URL}/${playerDisplayAvatarSprite}`} alt="Change Avatar" className="avatar-icon" />
               <span>Change Avatar</span>
             </button>
 
@@ -405,7 +405,7 @@ function TitleScreen() {
               className="ui-button"
               onClick={toggleHatInventory}
             >
-              <img src="/assets/hat-icon.png" alt="Hat Closet" className="hat-icon" />
+              <img src={`${process.env.PUBLIC_URL}/assets/hat-icon.png`} alt="Hat Closet" className="hat-icon" />
               <span>Hat Closet</span>
             </button>
           </div>
@@ -455,7 +455,7 @@ function TitleScreen() {
                   title={`Select ${avatar.name}`}
                 >
                   <img
-                    src={avatar.spritesheetPath}
+                    src={`${process.env.PUBLIC_URL}/${avatar.spritesheetPath}`}
                     alt={avatar.name}
                     style={{ maxWidth: '80px', maxHeight: '80px', border: playerDisplayAvatarId === avatar.id ? '2px solid gold' : '2px solid transparent' }}
                     onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
@@ -530,7 +530,7 @@ function TitleScreen() {
                         onClick={() => isUnlocked && handleEquipHat(hat.id)}
                         style={{ cursor: isUnlocked ? 'pointer' : 'not-allowed' }}
                       >
-                        <img src={hat.imagePath} alt={hat.name} />
+                        <img src={`${process.env.PUBLIC_URL}/${hat.imagePath}`} alt={hat.name} />
                         <div className="hat-item-name">{hat.name}</div>
                         {!isUnlocked && <div className="lock-icon">🔒</div>}
                       </div>
@@ -556,7 +556,7 @@ function TitleScreen() {
             <div
               className="hat-reveal-display"
             >
-              <img src={hatForReveal.imagePath} alt={hatForReveal.name} />
+              <img src={`${process.env.PUBLIC_URL}/${hatForReveal.imagePath}`} alt={hatForReveal.name} />
               <div className={`hat-name ${hatForReveal.rarity.toLowerCase()}`}>
                 {hatForReveal.name}
               </div>
