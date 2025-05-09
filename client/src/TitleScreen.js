@@ -17,7 +17,6 @@ function TitleScreen() {
   const [isHairballActive, setIsHairballActive] = React.useState(false);
   const [currentHairball, setCurrentHairball] = React.useState(null);
   const [hatForReveal, setHatForReveal] = React.useState(null);
-  const [isRevealOverlayVisible, setIsRevealOverlayVisible] = React.useState(false);
   const [isHatInventoryOpen, setIsHatInventoryOpen] = React.useState(false);
   const [hatInventoryFilter, setHatInventoryFilter] = React.useState('all');
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = React.useState(false);
@@ -136,7 +135,7 @@ function TitleScreen() {
       if (animationManagerRef.current) {
         animationManagerRef.current.update(performance.now());
         // To draw particles on the main canvas (optional, might need context passed to animation draw methods)
-        // animationManagerRef.current.draw(context);
+        animationManagerRef.current.draw(context); // Ensure particles are drawn
       }
 
       if (currentHatRevealAnimation.current && currentHatRevealAnimation.current.isPlaying) {
@@ -163,23 +162,8 @@ function TitleScreen() {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [equippedHatId, playerDisplayAvatarId]);
 
-  const getHatsByRarity = (rarityFilter = 'all') => {
-    if (!unlockedHats || unlockedHats.size === 0) {
-      return [];
-    }
-
-    let filteredHats = [];
-    for (const hat of allHatsFromConfig) {
-      if (unlockedHats.has(hat.id)) {
-        if (rarityFilter === 'all' || hat.rarity === rarityFilter) {
-          filteredHats.push(hat);
-        }
-      }
-    }
-    return filteredHats;
-  };
 
   const triggerGenerateHairball = () => {
     if (catDrawerRef.current) catDrawerRef.current.startCoughing();
@@ -224,11 +208,29 @@ function TitleScreen() {
     // setIsRevealOverlayVisible(true); // Replaced by animation logic
 
     const canvas = canvasRef.current;
+    let particleOriginX = 0;
+    let particleOriginY = 0;
+
+    if (canvas) {
+      const canvasRect = canvas.getBoundingClientRect();
+      const targetViewportX = window.innerWidth / 2;
+      // Estimate for the Y center of the reveal box: 
+      // viewport bottom - 20px (for .hat-reveal-overlay offset) - ~75px (for half of .hat-reveal-display's estimated height)
+      const targetViewportY = window.innerHeight - 95;
+
+      particleOriginX = targetViewportX - canvasRect.left;
+      particleOriginY = targetViewportY - canvasRect.top;
+    } else {
+      // Fallback if canvas is not available, though unlikely in this flow
+      particleOriginX = (typeof window !== 'undefined' ? window.innerWidth / 2 : 0);
+      particleOriginY = (typeof window !== 'undefined' ? window.innerHeight / 2 : 0);
+    }
+
     const animatedHatObject = {
       scale: 0,
       alpha: 0,
-      x: canvas ? canvas.width / 2 : 0, // For particle origin (if used on main canvas)
-      y: canvas ? canvas.height / 2 : 0, // For particle origin (if used on main canvas)
+      x: particleOriginX, // Use calculated canvas-relative X for particle origin
+      y: particleOriginY, // Use calculated canvas-relative Y for particle origin
       // Pass actual hat details for reference if animation logic evolves
       imagePath: currentHairball.hat.imagePath,
       name: currentHairball.hat.name,
