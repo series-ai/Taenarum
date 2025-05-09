@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/Taenarum/client/static/css/main.9c03afeb.css",
+    "main.js": "/Taenarum/client/static/js/main.65e40730.js",
+    "static/js/453.bc3a58b5.chunk.js": "/Taenarum/client/static/js/453.bc3a58b5.chunk.js",
+    "index.html": "/Taenarum/client/index.html",
+    "main.9c03afeb.css.map": "/Taenarum/client/static/css/main.9c03afeb.css.map",
+    "main.65e40730.js.map": "/Taenarum/client/static/js/main.65e40730.js.map",
+    "453.bc3a58b5.chunk.js.map": "/Taenarum/client/static/js/453.bc3a58b5.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.9c03afeb.css",
+    "static/js/main.65e40730.js"
+  ]
+}
