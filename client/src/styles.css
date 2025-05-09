@@ -316,92 +316,54 @@ body {
 }
 
 .hat-reveal-overlay {
-    position: fixed; /* Use fixed to cover the whole screen */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7); /* Darker overlay */
-    display: flex;
-    align-items: center;
+    position: fixed;
+    bottom: 20px; /* Adjust as needed for spacing from the bottom */
+    left: 50%;
+    transform: translateX(-50%); /* Dynamically combined with scale from JS */
+    display: flex; /* This will be controlled by inline style (JS) for show/hide animation */
     justify-content: center;
-    z-index: 100; /* Ensure it's on top of everything */
-    opacity: 0; /* Start hidden */
-    pointer-events: none; /* Don't interact when hidden */
-    transition: opacity 0.3s ease;
-}
-
-.hat-reveal-overlay.visible {
-    opacity: 1;
-    pointer-events: auto;
+    align-items: center;
+    z-index: 1000; /* Ensure it's on top of other UI elements */
+    pointer-events: none; /* Overlay itself doesn't capture clicks, content might if needed */
+    /* Transition for opacity and transform will be driven by JS state updates */
 }
 
 .hat-reveal-display {
-    background: white;
-    padding: 40px; /* Increased padding */
-    border-radius: 20px; /* More rounded corners */
+    background: rgba(20, 20, 40, 0.85); /* Dark semi-transparent background */
+    padding: 20px 30px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Softer, larger shadow */
-    transform: scale(0.5); /* Start smaller for animation */
-    opacity: 0;
-    transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease; /* Smoother pop-in */
-}
-
-.hat-reveal-display.fade-out { /* Class to trigger fade-out animation */
-    transform: scale(0.5);
-    opacity: 0;
+    color: white;
+    display: flex; /* Use flex to arrange image and text nicely */
+    flex-direction: column;
+    align-items: center;
+    gap: 10px; /* Space between image and text */
+    max-width: 300px; /* Max width for the reveal box */
 }
 
 .hat-reveal-display img {
-    width: 150px; /* Larger image */
-    height: 150px;
-    margin-bottom: 20px;
+    max-width: 100px; /* Adjust size as needed */
+    max-height: 100px;
     object-fit: contain;
+    /* margin-bottom: 10px; Removed in favor of gap */
 }
 
-.hat-name {
-    font-size: 24px; /* Larger font size */
+.hat-reveal-display .hat-name {
+    font-size: 1.4em; /* Larger font for the hat name */
     font-weight: bold;
-    margin-bottom: 10px;
-    color: #333; /* Darker text color */
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
 }
 
-/* Rarity colors for hat name */
-.hat-name.common {
-    color: #6c757d; /* Grey */
-}
-.hat-name.uncommon {
-    color: #28a745; /* Green */
-}
-.hat-name.rare {
-    color: #007bff; /* Blue */
-}
-.hat-name.legendary {
-    color: #ffc107; /* Gold/Orange */
-}
+/* Rarity colors for hat names (assuming these classes are already defined elsewhere or add them) */
+/* .hat-name.common { color: #FFFFFF; } */ /* Default white */
+/* .hat-name.uncommon { color: #1eff00; } */ /* Example: Green */
+/* .hat-name.rare { color: #0070dd; } */ /* Example: Blue */
+/* .hat-name.legendary { color: #a335ee; } */ /* Example: Purple */
+/* .hat-name.ultrarare { color: #ff8000; } */ /* Example: Orange for ultraRare if it exists, or similar to legendary */
 
-/* Keyframes for animation */
-@keyframes float-in {
-    from {
-        transform: translateY(50px) scale(0.8);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
-}
-
-@keyframes float-out {
-    from {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
-    to {
-        transform: translateY(-50px) scale(0.8);
-        opacity: 0;
-    }
-}
+/* Ensure existing rarity classes in your CSS target .hat-name.<rarity> if they don't already */
 
 .avatar-icon {
     width: 24px;

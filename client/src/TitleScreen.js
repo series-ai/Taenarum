@@ -4,6 +4,7 @@ import { fullnessThreshold, allHats as allHatsFromConfig, allAvatars, getAvatarC
 import BackgroundDrawer from './canvas/BackgroundDrawer';
 import CatDrawer from './canvas/CatDrawer';
 import { getRandomHat } from './utils/gameUtils';
+import { AnimationSystem } from './utils/animations'; // Added AnimationSystem
 
 function TitleScreen() {
   const canvasRef = React.useRef(null);
@@ -21,6 +22,10 @@ function TitleScreen() {
   const [hatInventoryFilter, setHatInventoryFilter] = React.useState('all');
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = React.useState(false);
   const [avatarFilter, setAvatarFilter] = React.useState('all');
+
+  const animationManagerRef = React.useRef(null);
+  const currentHatRevealAnimation = React.useRef(null);
+  const [hatRevealStyle, setHatRevealStyle] = React.useState({ opacity: 0, transform: 'scale(0)', display: 'none' });
 
   React.useEffect(() => {
     const savedGameState = localStorage.getItem('metagameGameState');
@@ -104,6 +109,8 @@ function TitleScreen() {
     const backgroundDrawer = new BackgroundDrawer(canvas, context);
     catDrawerRef.current = new CatDrawer(canvas, context);
 
+    animationManagerRef.current = new AnimationSystem.AnimationManager(); // Initialize AnimationManager
+
     if (equippedHatId) {
       const hatToEquip = allHatsFromConfig.find(h => h.id === equippedHatId);
       if (hatToEquip && catDrawerRef.current) {
@@ -124,6 +131,22 @@ function TitleScreen() {
       if (catDrawerRef.current) {
         catDrawerRef.current.update();
         catDrawerRef.current.draw();
+      }
+
+      if (animationManagerRef.current) {
+        animationManagerRef.current.update(performance.now());
+        // To draw particles on the main canvas (optional, might need context passed to animation draw methods)
+        // animationManagerRef.current.draw(context);
+      }
+
+      if (currentHatRevealAnimation.current && currentHatRevealAnimation.current.isPlaying) {
+        const anim = currentHatRevealAnimation.current;
+        // anim.hat is the object HatRevealAnimation modifies (animatedHatObject)
+        setHatRevealStyle({
+          opacity: anim.hat.alpha !== undefined ? anim.hat.alpha : 1,
+          transform: `scale(${anim.hat.scale !== undefined ? anim.hat.scale : 0})`,
+          display: 'flex' // Or 'block' based on desired final layout of overlay content
+        });
       }
       animationFrameId = requestAnimationFrame(gameLoop);
     };
@@ -198,7 +221,38 @@ function TitleScreen() {
 
     console.log('Opening hairball for:', currentHairball.hat.name);
     setHatForReveal(currentHairball.hat);
-    setIsRevealOverlayVisible(true);
+    // setIsRevealOverlayVisible(true); // Replaced by animation logic
+
+    const canvas = canvasRef.current;
+    const animatedHatObject = {
+      scale: 0,
+      alpha: 0,
+      x: canvas ? canvas.width / 2 : 0, // For particle origin (if used on main canvas)
+      y: canvas ? canvas.height / 2 : 0, // For particle origin (if used on main canvas)
+      // Pass actual hat details for reference if animation logic evolves
+      imagePath: currentHairball.hat.imagePath,
+      name: currentHairball.hat.name,
+    };
+
+    const revealAnimation = new AnimationSystem.HatRevealAnimation(
+      animatedHatObject,
+      currentHairball.hat.rarity
+    );
+
+    revealAnimation.onComplete = () => {
+      console.log("Hat reveal animation complete for:", currentHairball.hat.name);
+      // currentHatRevealAnimation.current can be set to null here or managed by the timer effect
+      // The useEffect for hiding will take care of setting display to 'none' after a delay.
+    };
+
+    if (animationManagerRef.current) {
+      animationManagerRef.current.add(revealAnimation);
+      currentHatRevealAnimation.current = revealAnimation;
+      setHatRevealStyle({ opacity: 0, transform: 'scale(0)', display: 'flex' }); // Make container visible for animation
+    } else {
+      console.error("Animation manager not initialized. Showing statically.");
+      setHatRevealStyle({ opacity: 1, transform: 'scale(1)', display: 'flex' }); // Fallback
+    }
 
     setUnlockedHats(prevUnlockedHats => {
       const newUnlockedHats = new Set(prevUnlockedHats);
@@ -212,16 +266,20 @@ function TitleScreen() {
   };
 
   React.useEffect(() => {
-    let revealTimer;
-    if (isRevealOverlayVisible && hatForReveal) {
-      revealTimer = setTimeout(() => {
-        setIsRevealOverlayVisible(false);
-      }, 3000);
+    let hideTimer;
+    // Check hatRevealStyle.display and hatForReveal to decide if overlay is "active"
+    if (hatRevealStyle.display !== 'none' && hatForReveal) {
+      hideTimer = setTimeout(() => {
+        // Animate out or just hide
+        setHatRevealStyle({ opacity: 0, transform: 'scale(0)', display: 'none' });
+        // currentHatRevealAnimation.current = null; // Clear animation ref
+        setHatForReveal(null); // Clear revealed hat data
+      }, 3000); // Duration overlay stays visible after animation
     }
     return () => {
-      clearTimeout(revealTimer);
+      clearTimeout(hideTimer);
     };
-  }, [isRevealOverlayVisible, hatForReveal]);
+  }, [hatRevealStyle.display, hatForReveal]); // Dependencies
 
   const handleGameInteraction = (event) => {
     if (event.target !== event.currentTarget) {
@@ -488,8 +546,11 @@ function TitleScreen() {
           </div>
         </div>
 
-        {isRevealOverlayVisible && hatForReveal && (
-          <div className="hat-reveal-overlay visible">
+        {hatForReveal && (
+          <div
+            className="hat-reveal-overlay"
+            style={hatRevealStyle}
+          >
             <div
               className="hat-reveal-display"
             >

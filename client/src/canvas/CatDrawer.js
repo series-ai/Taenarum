@@ -373,7 +373,7 @@ class CatDrawer {
     const headOffset = this.chosenAvatarConfig.headOffset || { x: 0, y: -this.frameHeight / 2.5 };
     const hatXOffset = headOffset.x;
     const hatYOffset = headOffset.y;
-    const hatScale = this.equippedHatData.scale || 0.5;
+    const hatScale = 1.2;
 
     this.ctx.save();
     // Position relative to the main cat's draw position and scale
