@@ -1,9 +1,9 @@
 import React from 'react';
 import './styles.css'; // Import the newly added CSS file
-import { fullnessThreshold, mockHat, allHats as allHatsFromConfig, rarityWeights, loadImage, allAvatars, getAvatarConfig, defaultAvatarId, avatarCategories, getAvatarType } from './gameConfig'; // Added allAvatars, getAvatarConfig, defaultAvatarId, avatarCategories, getAvatarType
+import { fullnessThreshold, allHats as allHatsFromConfig, allAvatars, getAvatarConfig, defaultAvatarId, avatarCategories, getAvatarType } from './gameConfig'; // Added allAvatars, getAvatarConfig, defaultAvatarId, avatarCategories, getAvatarType
 import BackgroundDrawer from './canvas/BackgroundDrawer';
 import CatDrawer from './canvas/CatDrawer';
-import { getRandomRarity, getRandomHat } from './utils/gameUtils';
+import { getRandomHat } from './utils/gameUtils';
 
 function TitleScreen() {
   const canvasRef = React.useRef(null);
@@ -12,7 +12,6 @@ function TitleScreen() {
   const [fullness, setFullness] = React.useState(0);
   const [unlockedHats, setUnlockedHats] = React.useState(new Set());
   const [playerDisplayAvatarId, setPlayerDisplayAvatarId] = React.useState(defaultAvatarId);
-  const [playerDisplayAvatarSprite, setPlayerDisplayAvatarSprite] = React.useState('assets/avatars/tabby.png');
   const [equippedHatId, setEquippedHatId] = React.useState(null);
   const [isHairballActive, setIsHairballActive] = React.useState(false);
   const [currentHairball, setCurrentHairball] = React.useState(null);
@@ -70,14 +69,16 @@ function TitleScreen() {
     }
   }, [treats, fullness, unlockedHats, playerDisplayAvatarId, equippedHatId]);
 
-  React.useEffect(() => {
-    // load player data from localStorage
-    const playerDataString = localStorage.getItem('metagameGameState');
-    if (playerDataString) {
-      const playerData = JSON.parse(playerDataString);
-      setTreats(playerData.treats);
+  const playerDisplayAvatarSprite = React.useMemo(() => {
+    const avatarConfig = getAvatarConfig(playerDisplayAvatarId);
+    if (avatarConfig && avatarConfig.spritesheetPath) {
+      return avatarConfig.spritesheetPath;
     }
-  }, []);
+    // Fallback if the selected avatar ID is invalid or its config is missing
+    console.warn(`Sprite for avatar ID ${playerDisplayAvatarId} not found. Falling back to default avatar sprite.`);
+    const defaultConfig = getAvatarConfig(defaultAvatarId);
+    return defaultConfig ? defaultConfig.spritesheetPath : 'assets/avatars/tabby.png'; // Ultimate fallback
+  }, [playerDisplayAvatarId]);
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -275,9 +276,6 @@ function TitleScreen() {
     }
   };
 
-  const handlePlayButtonClick = () => {
-    console.log("Play button clicked!");
-  };
 
   const hatsToDisplayInInventory = React.useMemo(() => {
     if (hatInventoryFilter === 'all') {
@@ -307,7 +305,6 @@ function TitleScreen() {
           frameHeight: selectedAvatarConfig.frameHeight,
         });
         setPlayerDisplayAvatarId(avatarId);
-        setPlayerDisplayAvatarSprite(selectedAvatarConfig.spritesheetPath);
         setIsAvatarSelectorOpen(false);
         console.log('Player avatar display changed to:', selectedAvatarConfig.name);
       } catch (error) {
